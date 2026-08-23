@@ -17,7 +17,10 @@ let W = 1280, H = 640
 guard let ctx = CGContext(
     data: nil, width: W, height: H, bitsPerComponent: 8, bytesPerRow: 0,
     space: CGColorSpaceCreateDeviceRGB(),
-    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    // No alpha channel. A social preview with transparency renders as nothing on
+    // GitHub's dark settings page — the card looks like it failed to upload when it
+    // uploaded perfectly well.
+    bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
 ) else { exit(1) }
 
 // Dark ground, so the orange reads as heat rather than as a background wash, and
@@ -56,9 +59,12 @@ draw("See what your AI coding agents really cost.", x: 502, y: 330, size: 36,
      weight: .regular, color: muted)
 draw("Tokens · spend · cache · rate limits", x: 502, y: 268, size: 32,
      weight: .medium, color: orange)
+// Matches the README exactly. "No network" stopped being true once a manual
+// update check existed, and a marketing card is the last place to keep a claim
+// the documentation has already corrected.
 draw("Menu bar app and CLI. Runs entirely on your machine —", x: 502, y: 200,
      size: 27, weight: .regular, color: muted)
-draw("no account, no telemetry, no network.", x: 502, y: 162, size: 27,
+draw("no account, no telemetry, nothing sent anywhere.", x: 502, y: 162, size: 27,
      weight: .regular, color: muted)
 
 guard let image = ctx.makeImage() else { exit(1) }

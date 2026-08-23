@@ -25,6 +25,17 @@ Usage by model
 
 ## What it looks like
 
+<p align="center">
+  <img src="docs/demo.gif" alt="The burn-o-meter menu bar popover: spend for the day, a per-hour chart, Claude and Codex rate limits with reset times, cache efficiency, and a per-model breakdown that expands to show projects." width="440">
+</p>
+
+The menu bar shows the number that matters at a glance; the popover has the rest.
+Every figure carries its provenance — `~` means API-equivalent rather than billed,
+`exact` means the provider reported it, and a model with no known price shows `—`
+rather than `$0.00`.
+
+The CLI reports the same numbers:
+
 ```console
 $ burn-o-meter today
 Today
@@ -45,10 +56,6 @@ Today
 
   codex primary  5% used of a 30-day window · plan go   exact (reported by Codex itself)
 ```
-
-Every figure carries its provenance. `~` means API-equivalent rather than billed,
-`exact` means the provider reported it, and a model with no known price shows `—`
-rather than `$0.00`.
 
 ```console
 $ burn-o-meter blocks
