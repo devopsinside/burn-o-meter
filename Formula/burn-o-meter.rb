@@ -32,9 +32,9 @@ class BurnOMeter < Formula
 
   bottle do
     root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.1"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "9f3abce4425240b018a86b79f7de79008095aeb86d06c00f2a9f1b8eb31f1c11"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "8392fe668c8cdfb8eb24066fc900a16b48e15431d2cbf0a02bd18855b0e52194"
-    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "0887840192da6d197aad2d49be7ae38b882975e9f3ceb7a973057506da89585d"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "98b55d6ad7ce62614b6b2cee00a9d4c97136bcab1dd1e30f78d5e2e74f60e04f"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "ec2ab85867d30a293f99e588688f83af46e60cf0830b992fccc3cab00bd03d1a"
+    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "54d60fbe87906f2bae7756683a1bff04db66305d0d79650e24721aa2a9d89d90"
   end
 
   def install
