@@ -1,0 +1,115 @@
+# burn-o-meter pricing overlay
+#
+# Corrections layered on top of the vendored models.dev snapshot. Each entry
+# overrides individual fields; everything else is inherited.
+#
+# ---------------------------------------------------------------------------
+# Why this file exists
+# ---------------------------------------------------------------------------
+# Anthropic bills prompt-cache WRITES at two different rates depending on the
+# cache TTL requested:
+#
+#     5-minute TTL  ->  1.25x the base input rate
+#     1-hour   TTL  ->  2.00x the base input rate
+#
+# No public pricing database records the second one. models.dev, LiteLLM and
+# every tool built on them publish a single `cache_write` figure, which is the
+# 5-minute rate.
+#
+# This matters more than it sounds. Claude Code writes its cache almost
+# entirely with 1-hour TTL -- measured on a real machine, 4,461,398 of
+# 4,461,398 cache-write tokens were 1-hour, not one was 5-minute. Pricing them
+# at the published rate understates cache-write cost by 37.5%, and a total bill
+# by roughly 9%.
+#
+# Values below are `2.0 * input`, taken from the same snapshot row as the model
+# they correct, so they stay consistent if base rates change.
+#
+# ---------------------------------------------------------------------------
+# Maintenance
+# ---------------------------------------------------------------------------
+# `verified` is the date a human last checked the entry against the source URL.
+# It is surfaced by `burnometer doctor --pricing`, so a stale correction is
+# visible rather than silently trusted. Re-check when Anthropic changes rates.
+#
+# OpenAI models are absent on purpose: their prompt caching has no separate
+# 1-hour write rate, so there is nothing to correct.
+
+
+[models."claude-fable-5"]
+# base input $10/Mtok  ->  5m write $12.5 (1.25x, from models.dev)
+cache_write_1h = 20.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-haiku-4-5"]
+# base input $1/Mtok  ->  5m write $1.25 (1.25x, from models.dev)
+cache_write_1h = 2.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-haiku-4-5-20251001"]
+# base input $1/Mtok  ->  5m write $1.25 (1.25x, from models.dev)
+cache_write_1h = 2.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-opus-4-5"]
+# base input $5/Mtok  ->  5m write $6.25 (1.25x, from models.dev)
+cache_write_1h = 10.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-opus-4-5-20251101"]
+# base input $5/Mtok  ->  5m write $6.25 (1.25x, from models.dev)
+cache_write_1h = 10.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-opus-4-6"]
+# base input $5/Mtok  ->  5m write $6.25 (1.25x, from models.dev)
+cache_write_1h = 10.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-opus-4-7"]
+# base input $5/Mtok  ->  5m write $6.25 (1.25x, from models.dev)
+cache_write_1h = 10.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-opus-4-8"]
+# base input $5/Mtok  ->  5m write $6.25 (1.25x, from models.dev)
+cache_write_1h = 10.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-opus-5"]
+# base input $5/Mtok  ->  5m write $6.25 (1.25x, from models.dev)
+cache_write_1h = 10.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-sonnet-4-5"]
+# base input $3/Mtok  ->  5m write $3.75 (1.25x, from models.dev)
+cache_write_1h = 6.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-sonnet-4-5-20250929"]
+# base input $3/Mtok  ->  5m write $3.75 (1.25x, from models.dev)
+cache_write_1h = 6.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-sonnet-4-6"]
+# base input $3/Mtok  ->  5m write $3.75 (1.25x, from models.dev)
+cache_write_1h = 6.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-sonnet-5"]
+# base input $2/Mtok  ->  5m write $2.5 (1.25x, from models.dev)
+cache_write_1h = 4.0   # 2.00x
+verified = "2026-08-21"
+source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
