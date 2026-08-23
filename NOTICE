@@ -1,0 +1,11 @@
+burn-o-meter bundles third-party data:
+
+  src/burnometer/pricing/snapshot.json
+    Derived from models.dev (https://github.com/anomalyco/models.dev)
+    Licensed MIT. Copyright (c) models.dev contributors.
+    Regenerate with: burnometer pricing refresh
+
+No source code from ccusage, ClaudeBar, claude-o-meter or any other usage
+tracker is used in this project. All log-format handling was written from
+first-hand inspection of the on-disk formats produced by Claude Code and
+the Codex CLI.

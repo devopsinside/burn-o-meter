@@ -1,0 +1,25 @@
+# Local-only working notes — NEVER commit. Contains machine-specific paths
+# and session context, not project documentation.
+PROGRESS.md
+.scratch/
+
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+macos/**/xcuserdata/
+macos/**/.build/
+macos/build/
+*.app/
+
+# Generated from macos/make-icon.swift — the .icns is committed, the staging
+# directory it is built from is not.
+macos/burn-o-meter.iconset/
