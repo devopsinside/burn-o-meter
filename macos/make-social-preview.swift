@@ -70,5 +70,25 @@ draw("no account, no telemetry, nothing sent anywhere.", x: 502, y: 162, size: 2
 guard let image = ctx.makeImage() else { exit(1) }
 let rep = NSBitmapImageRep(cgImage: image)
 guard let png = rep.representation(using: .png, properties: [:]) else { exit(1) }
-try png.write(to: URL(fileURLWithPath: "docs/social-preview.png"))
+
+// Keep only the chunks a decoder needs. AppKit attaches an eXIf chunk, and EXIF
+// metadata inside a PNG is unusual enough that GitHub's social-preview processor
+// rejects the image — it accepts the upload, then serves a 404 for it, which looks
+// exactly like the upload having silently failed.
+func stripAncillaryChunks(_ data: Data) -> Data {
+    let keep: Set<String> = ["IHDR", "PLTE", "IDAT", "IEND"]
+    var out = Data(data[0..<8])            // signature
+    var i = 8
+    while i + 8 <= data.count {
+        let len = data[i..<i+4].reduce(0) { Int($0) << 8 | Int($1) }
+        let type = String(bytes: data[i+4..<i+8], encoding: .ascii) ?? ""
+        let end = i + 12 + len
+        if end > data.count { break }
+        if keep.contains(type) { out.append(data[i..<end]) }
+        i = end
+    }
+    return out
+}
+
+try stripAncillaryChunks(png).write(to: URL(fileURLWithPath: "docs/social-preview.png"))
 print("wrote docs/social-preview.png (\(W)x\(H))")
