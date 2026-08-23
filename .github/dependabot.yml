@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # Pinning actions by tag still leaves supply-chain exposure; keeping them
+  # current is the mitigation we can actually automate.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -1,0 +1,36 @@
+name: Provider support
+description: Ask for a new AI tool or agent to be supported
+labels: [provider]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: Which tool
+      description: Name and link
+    validations:
+      required: true
+
+  - type: input
+    id: path
+    attributes:
+      label: Where does it write usage data
+      description: "e.g. `~/.foo/sessions/*.jsonl`. Path only — do not paste contents."
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: What the usage record looks like
+      description: |
+        A **redacted** example: field names and numbers, with all message content
+        removed. Please strip anything you would not post publicly.
+      render: json
+
+  - type: checkboxes
+    id: quota
+    attributes:
+      label: Does it record rate limits or quota?
+      options:
+        - label: It writes a percentage or limit figure to disk
+        - label: I do not know

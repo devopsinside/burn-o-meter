@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: engine (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: |
+          ruff check src tests
+          ruff format --check src tests
+
+      - name: Test
+        run: pytest -q
+
+  security:
+    name: security guarantees
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # The suite runs with an autouse fixture that raises on any outbound
+      # socket, so this job also proves the engine makes no network calls.
+      - name: Guarantee suite (G1-G7)
+        run: pytest tests/test_security.py -v
+
+      # Belt and braces on top of the in-test canary scan: build a database from
+      # the fixtures and grep the artefacts on disk.
+      - name: Canary scan of built artefacts
+        run: |
+          set -euo pipefail
+          export BURNOMETER_HOME="$RUNNER_TEMP/bom"
+          python - <<'PY'
+          import os, pathlib
+          from burnometer.adapters.base import LogSource
+          from burnometer.adapters.claude_code import ClaudeCodeAdapter
+          from burnometer.adapters.codex import CodexAdapter
+          from burnometer.scan import scan
+          from burnometer.snapshot import write_snapshot
+          from burnometer.store import Store
+
+          root = pathlib.Path("tests/fixtures")
+          class C(ClaudeCodeAdapter):
+              def sources(self): return [LogSource(root=root / "claude_code", glob="*.jsonl")]
+          class X(CodexAdapter):
+              def sources(self): return [LogSource(root=root / "codex", glob="*.jsonl")]
+
+          home = pathlib.Path(os.environ["BURNOMETER_HOME"])
+          with Store.open(home / "burn.db") as store:
+              scan(store, adapters=[C(), X()])
+              assert store.count_events() > 0, "fixtures produced no events"
+              write_snapshot(store)
+          PY
+          for f in "$BURNOMETER_HOME"/*; do
+            if grep -qa "CANARY" "$f"; then
+              echo "::error::content leaked into $(basename "$f")"; exit 1
+            fi
+          done
+          echo "no prompt content in any produced artefact"
+
+      - name: Dependency audit
+        run: |
+          set -euo pipefail
+          pip install pip-audit
+          # Audit the dependency tree, not the project itself. burn-o-meter is
+          # installed from local source and is not on PyPI, so pip-audit cannot
+          # look it up and --strict turns that into a failure. Excluding it keeps
+          # every real dependency strictly audited.
+          pip freeze --exclude-editable | grep -iv '^burn.o.meter' > /tmp/deps.txt
+          cat /tmp/deps.txt
+          pip-audit --strict --desc -r /tmp/deps.txt
+
+  package:
+    name: wheel installs clean
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel
+
+      # A wheel missing the vendored pricing data would silently report every
+      # model as unpriced, so its presence is checked rather than assumed.
+      - name: Data files are packaged
+        run: |
+          python - <<'PY'
+          import glob, zipfile, sys
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          missing = [f for f in ("snapshot.json", "overlay.toml", "schema.sql")
+                     if not any(n.endswith(f) for n in names)]
+          sys.exit(f"missing from wheel: {missing}") if missing else print("all data files present")
+          PY
+
+      - name: Install into a clean environment and run
+        run: |
+          python -m venv /tmp/fresh
+          /tmp/fresh/bin/pip install --quiet dist/*.whl
+          /tmp/fresh/bin/burnometer --version
+          BURNOMETER_HOME=/tmp/bom-home /tmp/fresh/bin/burnometer doctor
+
+  app:
+    name: macOS app builds
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: swift build --package-path macos/burn-o-meter -c release
+      - name: Bundle
+        run: macos/make-app.sh
+      - name: Popover layout fits, and nothing is clipped
+        # A view that outgrows the popover compiles cleanly and passes every
+        # engine test - AppKit clips it at runtime instead of scrolling. This
+        # renders the real view against an oversized snapshot and measures it.
+        run: macos/build/burn-o-meter.app/Contents/MacOS/burn-o-meter --check-layout
+
+      - name: Bundle reports the real version
+        # A hardcoded fallback in make-app.sh shipped builds labelled 0.1.0 long
+        # after 0.3.0 was out. A version string that lies is worse than a missing
+        # one, because nobody thinks to doubt it.
+        run: |
+          want=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/burnometer/__init__.py)
+          got=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
+                macos/build/burn-o-meter.app/Contents/Info.plist)
+          [ "$want" = "$got" ] || { echo "bundle says $got, package is $want" >&2; exit 1; }
+          echo "bundle version matches package: $got"
+
+      - name: Bundle is a status-bar app
+        run: |
+          plist=macos/build/burn-o-meter.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :LSUIElement" "$plist" | grep -q true
+          echo "LSUIElement set: no Dock icon"

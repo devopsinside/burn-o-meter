@@ -1,0 +1,56 @@
+name: Bug report
+description: A number looks wrong, or something does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before you paste anything:** `burnometer doctor` and `--json` output are
+        designed to be safe to share — they contain aggregates only, no prompt
+        text, and no absolute paths under the default privacy setting. If you
+        want to be extra careful, set `project_paths = "hash"` in
+        `~/.burn-o-meter/config.toml` and re-run; project names become opaque.
+
+        Never paste a provider log file (`~/.claude/projects/**`,
+        `~/.codex/sessions/**`). Those contain your full conversations.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `burnometer doctor`
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`burnometer --version`, plus macOS version if it is the app"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options: [CLI, menu bar app, background agent, not sure]
+    validations:
+      required: true
+
+  - type: textarea
+    id: numbers
+    attributes:
+      label: If a number looks wrong
+      description: |
+        What does burn-o-meter say, what do you believe is correct, and where
+        does the correct figure come from? Cost figures are labelled `api_billed`
+        or `api_equivalent` — please say which you are comparing against.

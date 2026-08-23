@@ -1,0 +1,152 @@
+# Builds Homebrew bottles - prebuilt tarballs - so `brew install` needs no
+# compiler. burn-o-meter is pure Python and compiles nothing, but Homebrew builds
+# Python formulae from sdists with --no-binary=:all:, so without a bottle it
+# demands Apple's ~1GB Command Line Tools from every user. A bottle removes that.
+name: bottles
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to bottle, e.g. v0.2.0"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_ANALYTICS: 1
+  # Homebrew 6 refuses untrusted taps. This is our own formula, from this same
+  # repository, built by this repository's CI - there is no third party to trust.
+  HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-26
+            label: arm64_tahoe (macOS 26)
+          - runner: macos-15
+            label: arm64_sequoia (macOS 15)
+          - runner: macos-14
+            label: arm64_sonoma (macOS 14)
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve the tag being bottled
+        id: tag
+        run: echo "tag=${{ github.event.release.tag_name || inputs.tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Tap this checkout
+        # Tapping the workspace bottles the formula as it exists in THIS commit,
+        # rather than whatever main happens to hold.
+        run: brew tap devopsinside/burn-o-meter "$GITHUB_WORKSPACE"
+
+      - name: Build
+        run: brew install --build-bottle devopsinside/burn-o-meter/burn-o-meter
+
+      - name: Prove it runs before we ship it
+        run: |
+          brew test devopsinside/burn-o-meter/burn-o-meter
+          burn-o-meter --version
+          burn-o-meter doctor >/dev/null
+
+      - name: Bottle
+        run: |
+          brew bottle --json --no-rebuild \
+            --root-url="https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}" \
+            devopsinside/burn-o-meter/burn-o-meter
+          # brew writes `name--version.tag.bottle.tar.gz` but serves it as
+          # `name-version...`; the JSON carries both names, so rename from that
+          # rather than guessing at the string.
+          for j in *.json; do
+            jq -r '.[].bottle.tags[] | "\(.local_filename)\t\(.filename)"' "$j" |
+              while IFS=$'\t' read -r src dst; do
+                [ "$src" != "$dst" ] && mv -- "$src" "$dst"
+              done
+          done
+          ls -la *.bottle.tar.gz *.json
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: bottle-${{ matrix.runner }}
+          path: |
+            *.bottle.tar.gz
+            *.json
+          if-no-files-found: error
+
+  publish:
+    name: publish + update formula
+    needs: build
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve the tag being bottled
+        id: tag
+        run: echo "tag=${{ github.event.release.tag_name || inputs.tag }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: bottle-*
+          merge-multiple: true
+
+      - name: Attach bottles to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ steps.tag.outputs.tag }}" *.bottle.tar.gz --clobber
+
+      - name: Write the bottle block into the formula
+        run: |
+          brew tap devopsinside/burn-o-meter "$GITHUB_WORKSPACE"
+          brew bottle --merge --write --no-commit *.json
+          # --write edits the tap's clone, not our checkout; copy it back.
+          cp "$(brew --repository devopsinside/burn-o-meter)/Formula/burn-o-meter.rb" \
+             Formula/burn-o-meter.rb
+          git diff --stat
+
+      - name: Push the bottle block to a branch
+        # Deliberately stops short of opening the PR. Doing that needs Actions
+        # granted repo-wide write plus permission to create pull requests, and
+        # broadening a bot's standing access to save one click is a poor trade for
+        # a project whose pitch is a small, auditable supply chain. The automation
+        # that matters - building, testing and uploading the bottles - is done.
+        run: |
+          if git diff --quiet -- Formula/burn-o-meter.rb; then
+            echo "Formula unchanged - nothing to push."
+            exit 0
+          fi
+          BRANCH="bottles/${{ steps.tag.outputs.tag }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add Formula/burn-o-meter.rb
+          git commit -m "Add bottles for ${{ steps.tag.outputs.tag }}
+
+          Prebuilt for arm64 Tahoe, Sequoia and Sonoma, so \`brew install\` pours a
+          tarball instead of building from an sdist. That removes the Command Line
+          Tools requirement, which was Homebrew's and not ours - burn-o-meter is
+          pure Python and compiles nothing."
+          # Plain --force, not --force-with-lease. The lease needs to know the
+          # remote ref, and actions/checkout clones shallowly and single-branch, so
+          # a re-run against a tag whose branch already exists is rejected as
+          # "stale info". This branch is generated wholesale by this workflow and
+          # written by nothing else, so overwriting it loses nothing.
+          git push --force origin "$BRANCH"
+          {
+            echo "### Bottles ready for ${{ steps.tag.outputs.tag }}"
+            echo
+            echo "Tarballs are attached to the [release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.tag }})."
+            echo "Open the PR to add the matching \`bottle do\` block:"
+            echo
+            echo "<https://github.com/${{ github.repository }}/compare/main...$BRANCH?expand=1>"
+          } >> "$GITHUB_STEP_SUMMARY"

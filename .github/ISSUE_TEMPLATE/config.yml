@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/devopsinside/burn-o-meter/security/advisories/new
+    about: Please report privately, not as a public issue. See SECURITY.md.
+  - name: Question or idea
+    url: https://github.com/devopsinside/burn-o-meter/discussions
+    about: Ask a question or propose something before building it.

@@ -1,0 +1,32 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so a newly-published advisory is caught even without a commit.
+    - cron: "27 4 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: analyze python
+    runs-on: ubuntu-latest
+    # Code scanning needs GitHub Advanced Security, which private repositories
+    # do not get on the free plan — the upload fails with "Resource not
+    # accessible by integration". Skipping while private keeps the workflow
+    # ready for the moment the repository goes public, without a permanently red
+    # check that trains everyone to ignore failures.
+    if: github.event.repository.private == false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@v3
