@@ -117,8 +117,13 @@ if [ -f "$BURNOMETER_HOME/burn.db" ]; then
   case "$perms" in -rw-------*) ok "database is owner-only ($perms)";; *) bad "database is $perms, expected -rw-------";; esac
 fi
 
-if strings "$BURNOMETER_HOME"/* 2>/dev/null | grep -q "$HOME/"; then
-  bad "an absolute path from your home directory was stored"
+# engine.json is excluded on purpose: it records where the engine binary lives so
+# the menu bar app can find it, and that is an absolute path by definition. The
+# guarantee is about the stores that hold *your* data - the database and the UI
+# snapshot - which must never contain a path from your home directory.
+if strings "$BURNOMETER_HOME"/burn.db "$BURNOMETER_HOME"/snapshot.json 2>/dev/null \
+   | grep -q "$HOME/"; then
+  bad "an absolute path from your home directory was stored in the database or snapshot"
 else
-  ok "no absolute paths stored"
+  ok "no absolute paths in the database or snapshot"
 fi
