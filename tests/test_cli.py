@@ -166,16 +166,14 @@ def test_homebrew_formula_matches_the_package_version():
 
     from burnometer import __version__
 
-    formula = (Path(__file__).resolve().parent.parent / "Formula" / "burn-o-meter.rb")
+    formula = Path(__file__).resolve().parent.parent / "Formula" / "burn-o-meter.rb"
     if not formula.exists():  # pragma: no cover - formula is optional in a checkout
         return
     text = formula.read_text()
 
     url = re.search(r'url "([^"]*burn_o_meter-([0-9.]+)\.tar\.gz)"', text)
     assert url, "formula has no source url"
-    assert url.group(2) == __version__, (
-        f"formula installs {url.group(2)}, package is {__version__}"
-    )
+    assert url.group(2) == __version__, f"formula installs {url.group(2)}, package is {__version__}"
     assert f"/v{__version__}/" in url.group(1), (
         f"formula url points at a different release tag than v{__version__}"
     )
