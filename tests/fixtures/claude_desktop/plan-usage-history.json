@@ -1,0 +1,78 @@
+{
+ "version": 2,
+ "samples": [
+  {
+   "t": 1786457178853,
+   "org": "CANARY-ORG-ID-must-never-be-stored",
+   "u": {
+    "fh": 50,
+    "sd": 40
+   }
+  },
+  {
+   "t": 1787316678853,
+   "org": "CANARY-ORG-ID-must-never-be-stored",
+   "u": {
+    "fh": 68,
+    "sd": 17
+   }
+  },
+  {
+   "t": 1787317578853,
+   "org": "CANARY-ORG-ID-must-never-be-stored",
+   "u": {
+    "fh": 95,
+    "sd": 19
+   }
+  },
+  {
+   "t": 1787318478853,
+   "org": "CANARY-ORG-ID-must-never-be-stored",
+   "u": {
+    "fh": 98,
+    "sd": 20
+   }
+  },
+  {
+   "t": 1787319378853,
+   "org": "CANARY-ORG-ID-must-never-be-stored",
+   "u": {
+    "fh": 7,
+    "sd": 20
+   }
+  },
+  {
+   "t": 1787320518853,
+   "org": "CANARY-ORG-ID-must-never-be-stored",
+   "u": {
+    "fh": 16,
+    "sd": 21
+   }
+  },
+  {
+   "t": 1787320638853,
+   "u": {
+    "fh": 150,
+    "sd": 20
+   }
+  },
+  {
+   "t": 1787320698853
+  },
+  {
+   "org": "x",
+   "u": {
+    "fh": 5,
+    "sd": 5
+   }
+  },
+  {
+   "t": 1787320758853,
+   "u": {
+    "fh": "sixteen",
+    "sd": 20
+   }
+  },
+  "not-a-dict"
+ ]
+}
