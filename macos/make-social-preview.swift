@@ -17,11 +17,20 @@ let W = 1280, H = 640
 guard let ctx = CGContext(
     data: nil, width: W, height: H, bitsPerComponent: 8, bytesPerRow: 0,
     space: CGColorSpaceCreateDeviceRGB(),
-    // No alpha channel. A social preview with transparency renders as nothing on
-    // GitHub's dark settings page — the card looks like it failed to upload when it
-    // uploaded perfectly well.
-    bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    // RGBA, matching the format of GitHub's own repo-card template exactly
+    // (colour-type 6). Their processor rejects a colour-type 2 image: the upload is
+    // accepted, an asset id appears in the og:image tag, and that URL then 404s.
+    // Every pixel is painted opaque below, so the alpha channel exists but is
+    // uniformly 255 — a transparent card renders as nothing on a dark page.
+    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
 ) else { exit(1) }
+
+// Paint the whole canvas opaque before anything else, so no pixel can retain the
+// zero alpha the context is initialised with.
+ctx.setBlendMode(.copy)
+ctx.setFillColor(CGColor(red: 0.09, green: 0.09, blue: 0.10, alpha: 1))
+ctx.fill(CGRect(x: 0, y: 0, width: CGFloat(W), height: CGFloat(H)))
+ctx.setBlendMode(.normal)
 
 // Dark ground, so the orange reads as heat rather than as a background wash, and
 // so the card sits comfortably in both light and dark timelines.
