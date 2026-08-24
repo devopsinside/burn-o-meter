@@ -114,9 +114,21 @@ burn-o-meter scan      # read your logs (first run takes ~150ms)
 burn-o-meter today     # what today cost, and where your limits stand
 ```
 
-The menu bar app is built from a checkout — `macos/make-app.sh`, then open
-`macos/build/burn-o-meter.app`. macOS trusts an app you compiled yourself; a
-downloaded one is blocked until Apple has been paid for a certificate.
+The menu bar app is built from a checkout:
+
+```bash
+macos/make-app.sh --install                 # builds, installs to /Applications
+open /Applications/burn-o-meter.app
+/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --enable-login-item
+```
+
+**Install it to `/Applications`.** macOS will not register a login item for an app
+running from a build directory, so one left there never starts itself — it works
+until the first reboot, after which Spotlight is the only way back. The gear menu's
+**Launch at Login** does the same as that third line.
+
+macOS trusts an app you compiled yourself; a downloaded one is blocked until Apple
+has been paid for a certificate.
 
 No developer tools on the machine, or want to try it without installing anything?
 See [docs/install.md](docs/install.md) — it also covers Homebrew tap trust and
@@ -219,7 +231,7 @@ python3 -m venv .venv
 .venv/bin/ruff check src tests
 
 swift build --package-path macos/burn-o-meter -c release
-macos/build/burn-o-meter.app/Contents/MacOS/burn-o-meter --dump   # UI state as JSON
+/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --dump   # UI state as JSON
 ```
 
 The `--dump` output must agree with `burn-o-meter today --json`; the app renders

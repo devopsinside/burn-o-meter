@@ -102,9 +102,15 @@ a credential-shaped string or a path from your home directory.
 No prebuilt release yet — build it in one command:
 
 ```bash
-macos/make-app.sh
-open macos/build/burn-o-meter.app
+macos/make-app.sh --install          # builds, then installs to /Applications
+open /Applications/burn-o-meter.app
 ```
+
+`--install` matters more than it looks: macOS refuses to register a login item for
+a bundle outside `/Applications`, so an app left in the build directory can never
+start itself. It seems fine until the first reboot, at which point the icon is
+simply gone and Spotlight is the only way to get it back. Leave the flag off only
+if you are testing a build you do not intend to keep.
 
 **Building it yourself is the smooth path.** macOS trusts an app you compiled on
 your own machine. It does not trust an app downloaded from the internet unless
@@ -124,8 +130,14 @@ data folder, quit.
 To have it start with your Mac:
 
 ```bash
-cp -R macos/build/burn-o-meter.app /Applications/
+macos/make-app.sh --install
 open /Applications/burn-o-meter.app     # then gear menu → Launch at Login
+```
+
+Or without opening the app at all:
+
+```bash
+/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --enable-login-item
 ```
 
 **The app must be in `/Applications` for this.** macOS will not register a login
@@ -162,6 +174,8 @@ brew services stop burn-o-meter    # only if you started it this way instead
 # 2. quit the menu bar app (gear menu → Quit, or its power button)
 #    Turn OFF "Launch at Login" first, or use System Settings → Login Items.
 pkill -f burn-o-meter.app
+# turn off Launch at Login first, so macOS is not left with a dangling login item
+/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --disable-login-item 2>/dev/null
 rm -rf macos/build/burn-o-meter.app /Applications/burn-o-meter.app
 
 # 3. delete all stored data — the database, UI payload, config

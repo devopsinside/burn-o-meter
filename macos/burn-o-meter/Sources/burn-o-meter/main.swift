@@ -410,6 +410,28 @@ if CommandLine.arguments.contains("--dump") {
     dumpSnapshotAndExit()
 }
 
+// Register or unregister the login item without opening the popover, so setting a
+// machine up is scriptable and, more usefully, verifiable. macOS still owns the
+// result: it can be revoked in System Settings, and the app cannot re-enable it.
+if CommandLine.arguments.contains("--enable-login-item")
+    || CommandLine.arguments.contains("--disable-login-item") {
+    let wanted = CommandLine.arguments.contains("--enable-login-item")
+    if !Preferences.isInApplicationsFolder {
+        print("burn-o-meter must be in /Applications for macOS to register a login item.")
+        print("Move it there first:  macos/make-app.sh --install")
+        exit(1)
+    }
+    Preferences.launchAtLogin = wanted
+    let status = Preferences.launchAtLoginStatus
+    print("launch at login: \(status)")
+    if wanted && Preferences.launchAtLoginBlockedByUser {
+        print("macOS is holding this for approval — allow it in")
+        print("System Settings → General → Login Items.")
+        exit(1)
+    }
+    exit(wanted == Preferences.launchAtLogin ? 0 : 1)
+}
+
 // Layout regression check, run by CI. See LayoutCheck for why it exists.
 if CommandLine.arguments.contains("--check-layout") {
     LayoutCheck.run()

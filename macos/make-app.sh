@@ -15,6 +15,11 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG="$HERE/burn-o-meter"
+INSTALL_TO_APPLICATIONS=0
+if [ "${1:-}" = "--install" ]; then
+  INSTALL_TO_APPLICATIONS=1
+  shift
+fi
 APP="${1:-$HERE/build/burn-o-meter.app}"
 # Read from the package rather than hardcoding. A literal default here went stale
 # the moment 0.2.0 shipped and quietly labelled every later build "0.1.0" - a
@@ -74,6 +79,22 @@ codesign --force --deep --sign - "$APP" >/dev/null 2>&1 \
     || echo "    ad-hoc signing failed; the app will still run locally"
 
 echo
+# Install into /Applications when asked. This is not tidiness: macOS refuses to
+# register a login item for a bundle outside /Applications, so an app left in the
+# build directory can never start itself. It appears to work until the first
+# reboot, after which the only way back is Spotlight.
+if [ "${INSTALL_TO_APPLICATIONS:-0}" = "1" ]; then
+  DEST="/Applications/$(basename "$APP")"
+  if [ -e "$DEST" ]; then
+    pkill -f "$DEST/Contents/MacOS/" 2>/dev/null || true
+    sleep 1
+    rm -rf "$DEST"
+  fi
+  cp -R "$APP" "$DEST"
+  APP="$DEST"
+  echo "installed: $DEST"
+fi
+
 echo "built: $APP"
 echo "run:   open '$APP'"
 echo

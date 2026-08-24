@@ -56,9 +56,9 @@ Two commands worth knowing:
 
 ```bash
 burn-o-meter doctor --security      # every file read, every network egress point
-macos/build/burn-o-meter.app/Contents/MacOS/burn-o-meter --dump          # what the UI sees, as JSON
-macos/build/burn-o-meter.app/Contents/MacOS/burn-o-meter --check-layout  # layout fits on 5 display sizes
-macos/build/burn-o-meter.app/Contents/MacOS/burn-o-meter --probe-popover # shows the popover once, reports its real size
+/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --dump          # what the UI sees, as JSON
+/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --check-layout  # layout fits on 5 display sizes
+/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --probe-popover # shows the popover once, reports its real size
 ```
 
 `--check-layout` measures the view against five representative displays, from an
