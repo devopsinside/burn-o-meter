@@ -21,7 +21,7 @@ read what it wrote, *then* write the adapter.
 
 | | |
 |---|---|
-| **Agents** | Claude Code, Codex CLI |
+| **Agents** | Claude Code, Codex CLI, OpenCode |
 | **Quota** | Claude (exact, via the desktop app's plan records), Codex (exact) |
 | **Pricing** | 290 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
@@ -46,31 +46,18 @@ reconciliation* rather than a wrong number. That is what the check is for.
 
 *Small. Validates a claim the pricing table already makes.*
 
-### 2. OpenCode
-
-The highest-leverage adapter. OpenCode routes to any provider, so one adapter
-reaches DeepSeek, Kimi, GLM, Qwen and MiniMax — **and local models**, which are
-otherwise unmeasurable (see below).
-
-It is also the first non-JSONL source (SQLite), so it genuinely tests whether
-the adapter contract generalises rather than re-proving it. And it records its
-own cost, giving a cross-check like Codex's running total: where our TTL-aware
-figure disagrees is informative.
-
-*Largest single expansion of coverage.*
-
-### 3. Kimi Code
+### 2. Kimi Code
 
 JSONL, structurally close to what we already parse. `~/.kimi`, with a
 `session_index.jsonl` and per-session context history carrying token usage.
 
-### 4. GitHub Copilot CLI
+### 3. GitHub Copilot CLI
 
 Two possible sources — an opt-in OpenTelemetry export, and a session-state
 events log that may exist without it. Which to use gets decided against a real
 install, not from documentation.
 
-### 5. Budgets and alerts
+### 4. Budgets and alerts
 
 "Tell me when today crosses $20" or "when this window is 3× my median" — the
 numbers to answer both already exist; what is missing is a threshold to store and a

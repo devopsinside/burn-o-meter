@@ -195,6 +195,7 @@ that, project-path privacy, custom rates and retention.
 | **Claude Code** | ✅ | ✅ | via the row below | `~/.claude/projects/*/*.jsonl` |
 | **Codex CLI** | ✅ | ✅ | **exact** — with reset time | `~/.codex/sessions/**/rollout-*.jsonl` |
 | Claude plan usage | — | — | **exact** — 5-hour and weekly | `~/Library/Application Support/Claude/plan-usage-history.json` |
+| **OpenCode** | ✅ | ✅ | — | `~/.local/share/opencode/opencode.db` |
 
 Claude Code's own transcripts carry no quota, so the 5-hour and weekly figures
 come from the Claude desktop app's records — which cover the whole account,
@@ -209,12 +210,17 @@ Agent data can be relocated (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`), and Claude Code
 writes to `~/.claude` or `~/.config/claude` depending on install. Both are
 checked; `burn-o-meter doctor` names the variable when a location is missing.
 
-**On the roadmap, in order:** OpenCode, then Kimi Code, then Copilot CLI, then
-Amp, Droid, Goose and Kilo. OpenCode comes first because one adapter reaches
-DeepSeek, Kimi, GLM, Qwen, MiniMax *and* local models — it is also the only route
-to local inference, since **Ollama does not persist token usage at all**
-(`eval_count` is returned per request and discarded). Local models are therefore
-only measurable through a harness that records them.
+OpenCode routes to any provider, so that one adapter also covers DeepSeek, Kimi,
+GLM, Qwen and MiniMax — whatever you point it at is measured the same way, and its
+own per-session totals serve as an integrity check the way Codex's running total
+does. It is also the only route to **local models**: Ollama does not persist token
+usage at all, so local inference is measurable only through a harness that records
+it.
+
+Also relocatable via `OPENCODE_DATA`.
+
+**On the roadmap, in order:** Kimi Code, then Copilot CLI, then Amp, Droid, Goose
+and Kilo.
 
 Each adapter is verified against real output from the tool before it ships, never
 from documentation alone — Codex's per-turn accounting trap looked entirely
