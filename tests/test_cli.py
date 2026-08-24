@@ -185,3 +185,39 @@ def test_homebrew_formula_matches_the_package_version():
         assert __version__ in root.group(1), (
             f"bottle root_url {root.group(1)!r} is not for version {__version__}"
         )
+
+
+def test_install_and_uninstall_scripts_are_present_and_executable():
+    """These are the first and last thing a user runs.
+
+    A README that promises `./install.sh` and a repository that does not ship it,
+    or ships it without the executable bit, fails at the worst possible moment.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    for name in ("install.sh", "uninstall.sh"):
+        script = root / name
+        assert script.exists(), f"{name} is missing"
+        assert script.stat().st_mode & 0o111, f"{name} is not executable"
+        text = script.read_text()
+        assert text.startswith("#!"), f"{name} has no shebang"
+        assert "set -euo pipefail" in text, f"{name} does not fail fast"
+
+
+def test_readme_documents_the_scripts_it_promises():
+    """Every script the README tells someone to run must actually exist."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    readme = (root / "README.md").read_text()
+
+    for match in re.findall(r"(?:^|\s)\./([a-z0-9_-]+\.sh)", readme):
+        assert (root / match).exists(), f"README references ./{match}, which does not exist"
+
+    # The distinction that caused real confusion: package managers install the CLI
+    # only, and the menu bar app is a separate build.
+    assert "command line tool only" in readme, (
+        "README must say plainly that brew/pipx/uv do not install the menu bar app"
+    )

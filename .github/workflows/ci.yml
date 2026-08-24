@@ -41,6 +41,17 @@ jobs:
       - name: Test
         run: pytest -q
 
+  scripts:
+    name: shell scripts lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: shellcheck
+        # install.sh and uninstall.sh are the first thing a new user runs. They get
+        # the same scrutiny as the Python, because a broken installer is a worse
+        # first impression than a broken feature.
+        run: shellcheck -S warning install.sh uninstall.sh scripts/*.sh macos/make-app.sh
+
   security:
     name: security guarantees
     runs-on: ubuntu-latest

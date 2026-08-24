@@ -197,8 +197,19 @@ a transcript into a terminal or a GitHub issue.
 
 One runtime dependency: `rich` (MIT, pure Python, no post-install hooks).
 `orjson` is an optional extra. Adding a dependency requires justification in
-review. No `curl | sh` install path will be published. Releases are checksummed
-and the macOS app is notarised.
+review.
+
+**No `curl | sh` install path will be published.** Piping a script straight from the
+network into a shell asks you to execute code you have not seen, from a host that
+could be compromised or impersonated, with your own privileges. `install.sh` exists
+and does the whole setup in one command — but you clone the repository first, so the
+script is on your disk and readable before it runs. That difference is the entire
+point.
+
+Releases are checksummed. **The macOS app is ad-hoc signed, not notarised** — that
+needs a paid Apple Developer certificate, which this project does not have. It is
+why the app is built from source rather than downloaded: macOS trusts a binary you
+compiled yourself, and would put a downloaded one behind a Gatekeeper warning.
 
 ## Why there is no live quota lookup
 

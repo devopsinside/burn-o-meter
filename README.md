@@ -95,10 +95,30 @@ unless you ask for it.
 
 ## Install
 
-Requires **Python 3.11+** (macOS 14+ for the menu bar app). Not on PyPI yet.
+**One command does everything** — the CLI, the menu bar app, background scanning,
+and the login item that brings the app back after a reboot:
 
 ```bash
-# Homebrew
+git clone https://github.com/devopsinside/burn-o-meter
+cd burn-o-meter && ./install.sh
+```
+
+Safe to re-run. `./uninstall.sh` removes all of it (`--purge` deletes your data too);
+your agents' own logs are never touched either way.
+
+> There is deliberately no `curl | sh` one-liner. That asks you to execute code you
+> have not read, from a host that could be impersonated, with your own privileges.
+> Cloning first means `install.sh` is on your disk and readable before it runs.
+
+<details>
+<summary>Installing the pieces separately</summary>
+
+### The CLI
+
+Requires **Python 3.11+**. Not on PyPI yet.
+
+```bash
+# Homebrew — pours a prebuilt bottle, no compiler needed
 brew tap devopsinside/burn-o-meter https://github.com/devopsinside/burn-o-meter
 brew install devopsinside/burn-o-meter/burn-o-meter
 
@@ -107,43 +127,43 @@ pipx install git+https://github.com/devopsinside/burn-o-meter
 uv tool install git+https://github.com/devopsinside/burn-o-meter
 ```
 
-Then:
+### ⚠️ The menu bar app is NOT installed by any of those
 
-```bash
-burn-o-meter scan      # read your logs (first run takes ~150ms)
-burn-o-meter today     # what today cost, and where your limits stand
-```
-
-### The menu bar app
-
-**Those commands install the CLI only** — there is no `.app` yet, and nothing will
-appear in your menu bar until you build one. It is a separate, optional step,
-because an unsigned app cannot be distributed through Homebrew without every user
+`brew`, `pipx` and `uv` install **the command line tool only**. No app is created,
+and **nothing will appear in your menu bar** until you build one. That is a separate,
+optional step — an unsigned app cannot ship through Homebrew without every user
 meeting a Gatekeeper warning.
 
 ```bash
 git clone https://github.com/devopsinside/burn-o-meter
 cd burn-o-meter
 macos/make-app.sh --install             # builds, installs to /Applications
-open /Applications/burn-o-meter.app     # the icon appears now
+open /Applications/burn-o-meter.app     # the 🔥 icon appears now
 
 # so it comes back by itself after a reboot
 /Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --enable-login-item
 ```
 
-**That last line matters.** macOS will not register a login item for an app running
-from a build directory, which is why `--install` puts it in `/Applications` first.
-Skip it and the app works until your next reboot, after which the icon is gone and
-Spotlight is the only way back. The gear menu's **Launch at Login** does the same
-thing.
+**Both of those last two lines matter.** macOS will not register a login item for an
+app outside `/Applications`, which is what `--install` is for; and until you register
+one, nothing starts the app at login. Skip either and the app works until your next
+reboot, after which the icon is gone and Spotlight is the only way back. The gear
+menu's **Launch at Login** does the same as that final line.
 
-macOS trusts an app you compiled yourself; a downloaded one is blocked until Apple
-has been paid for a certificate — which is the whole reason this is a build step
-rather than a download.
+macOS trusts an app you compiled yourself, which is why this is a build rather than
+a download.
 
-No developer tools on the machine, or want to try it without installing anything?
-See [docs/install.md](docs/install.md) — it also covers Homebrew tap trust and
-uninstalling.
+</details>
+
+Then, from anywhere:
+
+```bash
+burn-o-meter scan      # read your logs (first run takes ~150ms)
+burn-o-meter today     # what today cost, and where your limits stand
+```
+
+No developer tools at all? See [docs/install.md](docs/install.md), which also covers
+Homebrew tap trust and uninstalling.
 
 ## Usage
 
