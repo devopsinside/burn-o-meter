@@ -171,9 +171,17 @@ def test_homebrew_formula_matches_the_package_version():
         return
     text = formula.read_text()
 
-    url = re.search(r'url "([^"]*burn_o_meter-([0-9.]+)\.tar\.gz)"', text)
+    # The source is the tag archive (.../archive/refs/tags/vX.Y.Z.tar.gz) rather than
+    # a release asset, so the version lives in the tag, not a filename.
+    url = re.search(r'^\s*url "([^"]+)"', text, re.MULTILINE)
     assert url, "formula has no source url"
-    assert url.group(2) == __version__, f"formula installs {url.group(2)}, package is {__version__}"
-    assert f"/v{__version__}/" in url.group(1), (
-        f"formula url points at a different release tag than v{__version__}"
+    assert f"/v{__version__}.tar.gz" in url.group(1) or f"-{__version__}.tar.gz" in url.group(1), (
+        f"formula url {url.group(1)!r} does not point at version {__version__}"
     )
+
+    # A bottle block, when present, must be for the same version.
+    root = re.search(r'root_url "([^"]+)"', text)
+    if root:
+        assert __version__ in root.group(1), (
+            f"bottle root_url {root.group(1)!r} is not for version {__version__}"
+        )
