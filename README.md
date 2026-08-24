@@ -278,6 +278,11 @@ a single adapter.
 Full list, including what will *not* be built and why: **[ROADMAP.md](ROADMAP.md)**
 
 
+## Who makes this
+
+Built by **[DevOps Inside](https://github.com/devopsinside)** — more writing at
+[devopsinside.com](https://devopsinside.com/).
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Bundled model pricing derives from
