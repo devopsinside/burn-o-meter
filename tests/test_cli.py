@@ -279,3 +279,25 @@ def test_every_markdown_link_resolves():
                 problems.append(f"{md.name}: {path}#{anchor} matches no heading there")
 
     assert not problems, "broken documentation links:\n  " + "\n  ".join(problems)
+
+
+def test_changelog_has_an_entry_for_the_current_version():
+    """A release with no changelog entry is a release nobody can read.
+
+    Checked here rather than remembered, because the version is bumped in five
+    places and the changelog is the one with no other test holding it accountable.
+    """
+    import re
+    from pathlib import Path
+
+    from burnometer import __version__
+
+    changelog = (Path(__file__).resolve().parent.parent / "CHANGELOG.md").read_text()
+    assert f"## [{__version__}]" in changelog, f"CHANGELOG.md has no '## [{__version__}]' section"
+
+    # And the link reference at the bottom must resolve to the matching tag.
+    link = re.search(rf"^\[{re.escape(__version__)}\]:\s*(\S+)", changelog, re.M)
+    assert link, f"no link reference for {__version__}"
+    assert f"/v{__version__}" in link.group(1), (
+        f"the {__version__} link points at {link.group(1)!r}"
+    )

@@ -4,7 +4,7 @@
 and rate limits — all read from files already on your machine. No account, no
 telemetry, nothing sent anywhere.
 
-> **Status: alpha (v0.3.4).** The CLI and the macOS menu bar app both work end to
+> **Status: alpha (v0.4.0).** The CLI and the macOS menu bar app both work end to
 > end for Claude Code and Codex. Tested on macOS 14+; the CLI is portable but
 > Windows and Linux are not yet verified.
 
@@ -256,7 +256,8 @@ threat model: [SECURITY.md](SECURITY.md).
 
 - [FAQ and troubleshooting](docs/faq.md) — including what the desktop apps do and do not report
 - [Installing in detail](docs/install.md) · [Configuration](docs/configuration.md)
-- [Adding an agent](docs/adding-an-agent.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) · [Releasing](RELEASING.md)
+- [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md) · [Adding an agent](docs/adding-an-agent.md)
+- [Contributing](CONTRIBUTING.md) · [Releasing](RELEASING.md)
 - [Security](SECURITY.md) — threat model, guarantees, and how to report privately
 
 ## Development

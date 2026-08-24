@@ -7,7 +7,7 @@ class BurnOMeter < Formula
   # exists, so bottles can be built before any release — which matters because
   # releases are immutable and assets attach only at creation. Sourcing from a
   # release asset forces bottles into a second release; this way one holds all.
-  url "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/v0.3.4.tar.gz"
+  url "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/v0.4.0.tar.gz"
   sha256 "da4019f3a863d3ce5c784c53a3f05056c3654a62048b5be08d4240ca7e65785a"
   license "MIT"
 
@@ -32,13 +32,6 @@ class BurnOMeter < Formula
   resource "rich" do
     url "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz"
     sha256 "edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36"
-  end
-
-  bottle do
-    root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.4"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "572a41b776c0cf7cb5ac8e12c7fa1f019a46614473f8cb431122468d6844e859"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "40a2322b1273305692725323854ecdbcdec7ea0d03663371c6af154b37a00a95"
-    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "df6d2c9318d75b8f03875dd1862fb8f5b9cf72015dbcd99b20ff42b8d083364c"
   end
 
   def install
