@@ -3,8 +3,8 @@ class BurnOMeter < Formula
 
   desc "See what your AI coding agents really cost, without sending your data anywhere"
   homepage "https://github.com/devopsinside/burn-o-meter"
-  url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.1/burn_o_meter-0.3.1.tar.gz"
-  sha256 "48aed5ef06d7f2a79a784553f27fd60e12b28777cf4598615e39d543bcf0940d"
+  url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.2/burn_o_meter-0.3.2.tar.gz"
+  sha256 "681974b7e18d5f74fb43b80a3f3767f07b9449805f7af0e47f6c5af9980d9151"
   license "MIT"
 
 
@@ -28,13 +28,6 @@ class BurnOMeter < Formula
   resource "rich" do
     url "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz"
     sha256 "edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36"
-  end
-
-  bottle do
-    root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.1"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "98b55d6ad7ce62614b6b2cee00a9d4c97136bcab1dd1e30f78d5e2e74f60e04f"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "ec2ab85867d30a293f99e588688f83af46e60cf0830b992fccc3cab00bd03d1a"
-    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "54d60fbe87906f2bae7756683a1bff04db66305d0d79650e24721aa2a9d89d90"
   end
 
   def install
@@ -63,8 +56,15 @@ class BurnOMeter < Formula
         brew services start burn-o-meter   # the Homebrew way
         burn-o-meter agent install         # the built-in way
 
-      The macOS menu bar app is not installed by this formula. Build it from a
-      checkout with: macos/make-app.sh
+      This formula installs the command line tool only -- nothing appears in your
+      menu bar. The app is a separate, optional build, because an unsigned app
+      cannot ship through Homebrew without a Gatekeeper warning:
+        git clone https://github.com/devopsinside/burn-o-meter
+        cd burn-o-meter && macos/make-app.sh --install
+        open /Applications/burn-o-meter.app
+
+      --install matters: macOS will not register a login item for an app outside
+      /Applications, so one built in place never comes back after a reboot.
     EOS
   end
 

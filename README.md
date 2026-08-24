@@ -4,7 +4,7 @@
 and rate limits — all read from files already on your machine. No account, no
 telemetry, nothing sent anywhere.
 
-> **Status: alpha (v0.3.1).** The CLI and the macOS menu bar app both work end to
+> **Status: alpha (v0.3.2).** The CLI and the macOS menu bar app both work end to
 > end for Claude Code and Codex. Tested on macOS 14+; the CLI is portable but
 > Windows and Linux are not yet verified.
 
@@ -114,21 +114,32 @@ burn-o-meter scan      # read your logs (first run takes ~150ms)
 burn-o-meter today     # what today cost, and where your limits stand
 ```
 
-The menu bar app is built from a checkout:
+### The menu bar app
+
+**Those commands install the CLI only** — there is no `.app` yet, and nothing will
+appear in your menu bar until you build one. It is a separate, optional step,
+because an unsigned app cannot be distributed through Homebrew without every user
+meeting a Gatekeeper warning.
 
 ```bash
-macos/make-app.sh --install                 # builds, installs to /Applications
-open /Applications/burn-o-meter.app
+git clone https://github.com/devopsinside/burn-o-meter
+cd burn-o-meter
+macos/make-app.sh --install             # builds, installs to /Applications
+open /Applications/burn-o-meter.app     # the icon appears now
+
+# so it comes back by itself after a reboot
 /Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --enable-login-item
 ```
 
-**Install it to `/Applications`.** macOS will not register a login item for an app
-running from a build directory, so one left there never starts itself — it works
-until the first reboot, after which Spotlight is the only way back. The gear menu's
-**Launch at Login** does the same as that third line.
+**That last line matters.** macOS will not register a login item for an app running
+from a build directory, which is why `--install` puts it in `/Applications` first.
+Skip it and the app works until your next reboot, after which the icon is gone and
+Spotlight is the only way back. The gear menu's **Launch at Login** does the same
+thing.
 
 macOS trusts an app you compiled yourself; a downloaded one is blocked until Apple
-has been paid for a certificate.
+has been paid for a certificate — which is the whole reason this is a build step
+rather than a download.
 
 No developer tools on the machine, or want to try it without installing anything?
 See [docs/install.md](docs/install.md) — it also covers Homebrew tap trust and
