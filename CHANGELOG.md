@@ -8,6 +8,24 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Verified
+
+- **Local models are measurable through OpenCode**, end to end: Ollama running
+  `qwen3:0.6b` on this machine, OpenCode pointed at `localhost:11434`, and the
+  session read, reconciled and reported like any other.
+- **Ollama persists nothing**, confirmed on a real install rather than cited. It
+  returns `prompt_eval_count` and `eval_count` per request and keeps none of it;
+  `~/.ollama` holds an SSH keypair and a cache, and `/api/history` and `/api/usage`
+  are both 404.
+
+### Known
+
+- A local model is reported as `unpriced` when it should be `not_metered` — the
+  first means "we do not know the rate", the second "there is no rate". Closing it
+  needs the upstream provider recorded on the event, which is a schema change.
+
 ## [0.4.0] — 2026-08-25
 
 ### Added
