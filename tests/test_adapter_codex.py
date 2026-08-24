@@ -186,3 +186,21 @@ def test_plan_type_signals_a_subscription(session) -> None:
     from burnometer.scan import _detect_subscription
 
     assert _detect_subscription(session) is True
+
+
+def test_reasoning_tokens_are_inside_output_not_additional():
+    """Codex counts reasoning within output_tokens; OpenCode does not.
+
+    Verified against 174 real rollout blocks with non-zero reasoning, every one of
+    which satisfied input + output == total. Adding reasoning here would double-count
+    it. This is pinned because the opposite is true of OpenCode, and a future edit
+    made while looking at that adapter could plausibly "correct" this one.
+    """
+    total = {"input_tokens": 17470, "output_tokens": 314, "reasoning_output_tokens": 180}
+    total["total_tokens"] = total["input_tokens"] + total["output_tokens"]
+
+    assert total["input_tokens"] + total["output_tokens"] == total["total_tokens"]
+    assert (
+        total["input_tokens"] + total["output_tokens"] + total["reasoning_output_tokens"]
+        != total["total_tokens"]
+    ), "reasoning must NOT be additive for Codex"

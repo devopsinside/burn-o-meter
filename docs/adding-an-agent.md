@@ -1,5 +1,25 @@
 # Adding an agent
 
+## Check what "output tokens" means before you trust it
+
+Every source so far has disagreed about reasoning, and the difference is a silent
+percentage on every bill:
+
+| Source | Reasoning tokens | Verified against |
+|---|---|---|
+| Codex | **inside** `output_tokens` | 174/174 blocks with non-zero reasoning satisfy `input + output == total` |
+| Claude Code | no reasoning field; `output_tokens_details.thinking_tokens` is a **breakdown within** output | 2,444/2,444 blocks, detail never exceeds output |
+| OpenCode | **excluded** from `tokens.output`, but billed at the output rate | its own `cost` matched ours only after adding reasoning |
+
+`TokenCounts.reasoning` is display-only and is *not* added to `.total`. An adapter
+whose source excludes reasoning must therefore fold it into `output` itself. Getting
+this wrong is invisible: the totals still look plausible, and the error scales with
+how much the model thinks.
+
+The way to settle it is arithmetic on real data, not documentation — find blocks
+where reasoning is non-zero and see which identity holds.
+
+
 The adapter contract is deliberately thin, because breadth is the point. An
 adapter declares where its data lives and turns records into `UsageEvent`s;
 everything else — deduplication, pricing, cache-TTL accounting, storage,

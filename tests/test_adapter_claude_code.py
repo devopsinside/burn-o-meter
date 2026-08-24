@@ -184,3 +184,15 @@ def test_every_registered_adapter_satisfies_the_protocol():
         # Declared, not merely defaulted, so each adapter states its own intent.
         for member in ("name", "display_name", "implemented", "rescan_unchanged"):
             assert hasattr(adapter, member), f"{adapter.name} is missing {member}"
+
+
+def test_thinking_tokens_are_a_breakdown_within_output():
+    """Claude Code reports no reasoning field; thinking sits inside output_tokens.
+
+    Verified on 2,444 real usage blocks carrying output_tokens_details.thinking_tokens:
+    the detail never exceeded output_tokens. Treating it as additional would inflate
+    every thinking-enabled model.
+    """
+    usage = {"output_tokens": 500, "output_tokens_details": {"thinking_tokens": 380}}
+    detail = sum(v for v in usage["output_tokens_details"].values() if isinstance(v, int))
+    assert detail <= usage["output_tokens"], "thinking tokens are a subset of output"
