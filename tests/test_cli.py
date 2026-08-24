@@ -238,3 +238,44 @@ def test_docs_do_not_contradict_each_other_on_the_login_item():
     reboot = faq.index("missing after a reboot")
     full_bar = faq.index("the menu bar being full")
     assert reboot < full_bar, "the login-item cause must be listed before the full-menu-bar one"
+
+
+def test_every_markdown_link_resolves():
+    """Broken links are the quiet way documentation stops being trustworthy.
+
+    Checks relative file links and heading anchors, in-file and across files, using
+    GitHub's slug rules.
+    """
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+
+    def slug(heading: str) -> str:
+        s = re.sub(r"[^\w\s-]", "", heading.strip().lower())
+        return re.sub(r"\s+", "-", s).strip("-")
+
+    def headings(text: str) -> set[str]:
+        return {slug(m) for m in re.findall(r"^#{1,6}\s+(.+)$", text, re.M)}
+
+    problems = []
+    for md in list(root.glob("*.md")) + list((root / "docs").glob("*.md")):
+        text = md.read_text()
+        own = headings(text)
+
+        for anchor in re.findall(r"\]\(#([a-z0-9_-]+)\)", text):
+            if anchor not in own:
+                problems.append(f"{md.name}: #{anchor} matches no heading in the same file")
+
+        for path in re.findall(r"\]\(([A-Za-z0-9_./-]+\.md)\)", text):
+            if not (md.parent / path).exists():
+                problems.append(f"{md.name}: {path} does not exist")
+
+        for path, anchor in re.findall(r"\]\(([A-Za-z0-9_./-]+\.md)#([a-z0-9_-]+)\)", text):
+            target = md.parent / path
+            if not target.exists():
+                problems.append(f"{md.name}: {path} does not exist")
+            elif anchor not in headings(target.read_text()):
+                problems.append(f"{md.name}: {path}#{anchor} matches no heading there")
+
+    assert not problems, "broken documentation links:\n  " + "\n  ".join(problems)

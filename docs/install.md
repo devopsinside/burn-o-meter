@@ -18,7 +18,7 @@ Requires **Python 3.11+**. macOS 14+ for the menu bar app.
 
 > **`brew`, `pipx` and `uv` install the command line tool only.** No app is created
 > and nothing appears in your menu bar until you build one — see
-> [the menu bar app](#the-menu-bar-app) below. `./install.sh` does both.
+> [the macOS menu bar app](#the-macos-menu-bar-app) below. `./install.sh` does both.
 
 ### The CLI
 

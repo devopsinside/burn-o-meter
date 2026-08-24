@@ -21,7 +21,7 @@ tokens are recorded either, which is why app usage never appears as dollars.
 The **ChatGPT desktop app** stores conversations as opaque files and nothing that
 looks like usage, quota or billing. The only ways to get numbers out would be to
 read conversation contents — which burn-o-meter refuses to do, see
-[SECURITY.md](SECURITY.md) — or to call an account API with your login, which the
+[SECURITY.md](../SECURITY.md) — or to call an account API with your login, which the
 providers' terms do not allow. So it reports nothing rather than guessing.
 
 The pattern: burn-o-meter measures agents that write their own token accounting to
@@ -43,7 +43,7 @@ every price came from — without printing anything from your conversations.
 
 | Symptom | Likely cause and fix |
 | --- | --- |
-| `command not found` | The install did not put it on PATH. A virtualenv only does that while activated — see [installing](#the-cli). |
+| `command not found` | The install did not put it on PATH. A virtualenv only does that while activated — see [installing](install.md#the-cli). |
 | `no agent logs found` | Logs are somewhere non-default. Set `CLAUDE_CONFIG_DIR` or `CODEX_HOME` and re-run `doctor`. |
 | Numbers look frozen | Nothing is scanning in the background. `burn-o-meter agent status`, then `agent install` if it is not loaded. |
 | Menu bar shows `—` | No data scanned yet. Run `burn-o-meter scan`. |
@@ -101,4 +101,4 @@ number, what you expected, and what `doctor` shows. Accuracy is the whole point 
 this tool, so a disagreement with your bill is a bug worth chasing.
 
 For anything security-related, do not open a public issue — see
-[SECURITY.md](SECURITY.md) for private disclosure.
+[SECURITY.md](../SECURITY.md) for private disclosure.

@@ -26,7 +26,7 @@ reporting zero for the other is worse than not supporting the tool at all. And
 adapter cannot leak prompts even by accident.
 
 Full guide, including the invariants that matter, in
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ### Other models
 
