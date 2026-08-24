@@ -82,71 +82,41 @@ jobs:
             *.json
           if-no-files-found: error
 
-  publish:
-    name: publish + update formula
+  collect:
+    name: collect bottles
     needs: build
     runs-on: macos-14
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v7
 
-      - name: Resolve the tag being bottled
-        id: tag
-        run: echo "tag=${{ github.event.release.tag_name || inputs.tag }}" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v6
         with:
           pattern: bottle-*
           merge-multiple: true
 
-      - name: Attach bottles to the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ steps.tag.outputs.tag }}" *.bottle.tar.gz --clobber
-
-      - name: Write the bottle block into the formula
+      - name: Print the bottle block for the release
+        # Deliberately does NOT attach these to the release. GitHub releases are
+        # immutable once published: assets can only be added at creation time, and
+        # a tag consumed by an immutable release can never be reused - so a
+        # workflow that uploads afterwards cannot work, and retrying burns the
+        # version number. The bottles are published as workflow artifacts instead,
+        # and `scripts/release.sh` attaches them while creating the release.
         run: |
-          brew tap devopsinside/burn-o-meter "$GITHUB_WORKSPACE"
-          brew bottle --merge --write --no-commit *.json
-          # --write edits the tap's clone, not our checkout; copy it back.
-          cp "$(brew --repository devopsinside/burn-o-meter)/Formula/burn-o-meter.rb" \
-             Formula/burn-o-meter.rb
-          git diff --stat
-
-      - name: Push the bottle block to a branch
-        # Deliberately stops short of opening the PR. Doing that needs Actions
-        # granted repo-wide write plus permission to create pull requests, and
-        # broadening a bot's standing access to save one click is a poor trade for
-        # a project whose pitch is a small, auditable supply chain. The automation
-        # that matters - building, testing and uploading the bottles - is done.
-        run: |
-          if git diff --quiet -- Formula/burn-o-meter.rb; then
-            echo "Formula unchanged - nothing to push."
-            exit 0
-          fi
-          BRANCH="bottles/${{ steps.tag.outputs.tag }}"
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add Formula/burn-o-meter.rb
-          git commit -m "Add bottles for ${{ steps.tag.outputs.tag }}
-
-          Prebuilt for arm64 Tahoe, Sequoia and Sonoma, so \`brew install\` pours a
-          tarball instead of building from an sdist. That removes the Command Line
-          Tools requirement, which was Homebrew's and not ours - burn-o-meter is
-          pure Python and compiles nothing."
-          # Plain --force, not --force-with-lease. The lease needs to know the
-          # remote ref, and actions/checkout clones shallowly and single-branch, so
-          # a re-run against a tag whose branch already exists is rejected as
-          # "stale info". This branch is generated wholesale by this workflow and
-          # written by nothing else, so overwriting it loses nothing.
-          git push --force origin "$BRANCH"
           {
-            echo "### Bottles ready for ${{ steps.tag.outputs.tag }}"
+            echo "### Bottles built"
             echo
-            echo "Tarballs are attached to the [release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.tag }})."
-            echo "Open the PR to add the matching \`bottle do\` block:"
+            echo "Download the \`bottle-*\` artifacts from this run, then create the"
+            echo "release with them attached — assets cannot be added afterwards."
             echo
-            echo "<https://github.com/${{ github.repository }}/compare/main...$BRANCH?expand=1>"
+            echo '```ruby'
+            echo '  bottle do'
+            echo "    root_url \"https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag || inputs.tag }}\""
+            for f in *.bottle.tar.gz; do
+              tag=$(echo "$f" | sed -E 's/.*\.(arm64_[a-z]+)\.bottle\.tar\.gz/\1/')
+              sum=$(shasum -a 256 "$f" | cut -d' ' -f1)
+              printf '    sha256 cellar: :any_skip_relocation, %s: "%s"\n' "$tag" "$sum"
+            done
+            echo '  end'
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"

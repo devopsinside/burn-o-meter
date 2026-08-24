@@ -3,8 +3,8 @@ class BurnOMeter < Formula
 
   desc "See what your AI coding agents really cost, without sending your data anywhere"
   homepage "https://github.com/devopsinside/burn-o-meter"
-  url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.2/burn_o_meter-0.3.2.tar.gz"
-  sha256 "681974b7e18d5f74fb43b80a3f3767f07b9449805f7af0e47f6c5af9980d9151"
+  url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.3/burn_o_meter-0.3.3.tar.gz"
+  sha256 "4974c4ac9fff37b9d61b433be1f0d91260302d4e2de7a815cd4e4617912b4f61"
   license "MIT"
 
 
@@ -28,13 +28,6 @@ class BurnOMeter < Formula
   resource "rich" do
     url "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz"
     sha256 "edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36"
-  end
-
-  bottle do
-    root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.2"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "8981225e3a0b83f3ee949847f16523fdebce01d724bb44ea57707cbe8776c051"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "2b631c0c676cfca754eeaf52a9da17331a2d7691bf20a0f2c986729d5aca0d0f"
-    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "01be6192e19ab58a919290f6a573dec41a55bed0198250df3938507aa174b2d7"
   end
 
   def install
