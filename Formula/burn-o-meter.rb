@@ -34,6 +34,13 @@ class BurnOMeter < Formula
     sha256 "edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36"
   end
 
+  bottle do
+    root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.4.0"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "f85f0776334e11dcf69d5a4765d01acce4ed4ba984a3f9c2cf2ffd7edba2dfdb"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "74896b096fa760244186c14b1aa82b3f5ebaff2c8477dc5ec8072dc3273449a9"
+    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "50f64e11bd9692ce92b4c71f4943369e833b66a57b9749ee869c40c828a351a8"
+  end
+
   def install
     virtualenv_install_with_resources
   end
