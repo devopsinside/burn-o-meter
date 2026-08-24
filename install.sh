@@ -28,7 +28,7 @@ for arg in "$@"; do
     --cli-only) WANT_APP=0; WANT_LOGIN=0 ;;
     --no-login) WANT_LOGIN=0 ;;
     --no-agent) WANT_AGENT=0 ;;
-    -h|--help)  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
