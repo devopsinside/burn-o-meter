@@ -60,6 +60,9 @@ class ClaudeCodeAdapter:
     display_name = "Claude Code"
     implemented = True
 
+    # Offsets make a rescan of an unchanged file pointless here: every
+    # answer is read off individual lines, not derived from the series.
+    rescan_unchanged = False
     #: Claude Code writes to one of these depending on how it was installed, and
     #: honours CLAUDE_CONFIG_DIR to move them. Checking only the first would
     #: report "not installed" for anyone on the second.

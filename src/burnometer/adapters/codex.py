@@ -88,6 +88,9 @@ class CodexAdapter:
     display_name = "Codex CLI"
     implemented = True
 
+    # Offsets make a rescan of an unchanged file pointless here: every
+    # answer is read off individual lines, not derived from the series.
+    rescan_unchanged = False
     #: Codex relocates its whole home with CODEX_HOME.
     ENV_VAR = "CODEX_HOME"
     DEFAULT_ROOTS = (Path.home() / ".codex",)

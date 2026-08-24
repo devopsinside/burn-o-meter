@@ -132,7 +132,14 @@ class Adapter(Protocol):
     it and ``doctor`` reports it as detected-but-not-yet-parsed, rather than the
     tool silently appearing to support a provider it cannot read."""
 
-    def sources(self) -> Sequence[LogSource]: ...
+    def sources(self) -> Sequence[LogSource]:
+        """Where this adapter's data lives.
+
+        Globs must be narrow enough to reach only the files being parsed. A
+        recursive walk of a provider's directory would sweep in the credential
+        stores that sit beside the logs, which is the failure this design exists
+        to make impossible rather than merely unlikely.
+        """
 
     def parse(
         self,
@@ -152,7 +159,6 @@ class Adapter(Protocol):
         here, before the value reaches storage, so a stricter setting leaves
         nothing recoverable rather than merely hidden.
         """
-        ...
 
 
 REGISTRY: dict[str, Adapter] = {}

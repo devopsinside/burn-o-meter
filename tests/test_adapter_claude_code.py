@@ -162,3 +162,25 @@ def test_raw_file_provenance_is_redacted(basic) -> None:
     e = basic.events[0]
     assert e.raw_line is not None and e.raw_line > 0
     assert str(Path.home()) not in (e.raw_file or "")
+
+
+def test_every_registered_adapter_satisfies_the_protocol():
+    """The Protocol is the contract; nothing was checking anyone kept it.
+
+    Two adapters were missing `rescan_unchanged`, so `isinstance(a, Adapter)` was
+    False for both. It caused no crash — the scanner reads it with a getattr default
+    — but a contract nobody verifies is a comment, and the next adapter would have
+    inherited the same silence.
+    """
+    from burnometer.adapters import get_adapters
+    from burnometer.adapters.base import Adapter
+
+    adapters = get_adapters()
+    assert adapters, "no adapters are registered"
+    for adapter in adapters:
+        assert isinstance(adapter, Adapter), (
+            f"{adapter.name} does not satisfy the Adapter protocol — a declared member is missing"
+        )
+        # Declared, not merely defaulted, so each adapter states its own intent.
+        for member in ("name", "display_name", "implemented", "rescan_unchanged"):
+            assert hasattr(adapter, member), f"{adapter.name} is missing {member}"
