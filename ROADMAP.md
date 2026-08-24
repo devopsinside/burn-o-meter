@@ -17,7 +17,7 @@ read what it wrote, *then* write the adapter.
 
 ---
 
-## Shipped — v0.3.0
+## Shipped — v0.3.4
 
 | | |
 |---|---|
@@ -25,9 +25,9 @@ read what it wrote, *then* write the adapter.
 | **Quota** | Claude (exact, via the desktop app's plan records), Codex (exact) |
 | **Pricing** | 290 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
-| **Quality** | 262 tests · security guarantees enforced in CI · reconciled against real logs |
+| **Quality** | 268 tests · security guarantees enforced in CI · reconciled against real logs |
 | **Analytics** | per-model cost, cache hit rate, effective $/Mtok, cache savings, rolling windows |
-| **Install** | Homebrew tap with prebuilt bottles · pipx · uv · a release archive needing no toolchain |
+| **Install** | `./install.sh` does everything · Homebrew tap with prebuilt bottles · pipx · uv · a release archive needing no toolchain |
 | **macOS app** | app icon · popover sized to the display it opens on · four menu bar title widths |
 
 ---
@@ -113,8 +113,16 @@ protobuf — and its state table holds an OAuth token plus the account holder's
 name and email beside the data. Wrong trade for a tool whose promise is that it
 touches neither.
 
-**Gemini CLI.** Writes no usage data by default, and Google is retiring
-individual sign-in for it in favour of Antigravity.
+**Gemini CLI.** Deprecated in favour of Antigravity. Checked anyway: its session
+files carry no usage-shaped keys at all, and the only `token` fields in `~/.gemini`
+are in `oauth_creds.json` — credentials the deny-list exists to keep us away from.
+
+**Cursor.** `~/.cursor/ai-tracking/ai-code-tracking.db` sounds exactly right and is
+not. Its schema has no token, cost or cache column anywhere; `model` appears only as
+a label on code-provenance rows. What it records is how much of your code was
+AI-written — `linesAdded`, `humanLinesAdded`, `v2AiPercentage` — never what it cost.
+Its usage tables were also empty. Measurable only where the tool records it, same as
+Ollama.
 
 **Anything requiring a proxy.** Asking users to run LiteLLM in front of
 everything would collect beautiful data and would be a different product.
