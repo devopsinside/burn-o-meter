@@ -33,6 +33,14 @@ and removes everything. Run it before opening a PR that touches parsing,
 storage or the CLI — the unit tests use fixtures, and this is the only thing
 that exercises the whole path against real data.
 
+`./install.sh` sets up a working install end to end if you want to run what you are
+changing; `./uninstall.sh --purge` puts the machine back. Both are shellchecked in
+CI alongside the Python.
+
+Releases have a forced order — GitHub releases are immutable, so assets attach only
+at creation and a consumed tag can never be reused. [RELEASING.md](RELEASING.md)
+records the sequence and why each step is where it is.
+
 ## Non-negotiable: never invent a number
 
 The entire point of this tool is that its figures are defensible. Every one of

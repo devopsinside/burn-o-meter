@@ -250,7 +250,7 @@ threat model: [SECURITY.md](SECURITY.md).
 
 - [FAQ and troubleshooting](docs/faq.md) — including what the desktop apps do and do not report
 - [Installing in detail](docs/install.md) · [Configuration](docs/configuration.md)
-- [Adding an agent](docs/adding-an-agent.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
+- [Adding an agent](docs/adding-an-agent.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md) · [Releasing](RELEASING.md)
 - [Security](SECURITY.md) — threat model, guarantees, and how to report privately
 
 ## Development

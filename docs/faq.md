@@ -47,7 +47,9 @@ every price came from — without printing anything from your conversations.
 | `no agent logs found` | Logs are somewhere non-default. Set `CLAUDE_CONFIG_DIR` or `CODEX_HOME` and re-run `doctor`. |
 | Numbers look frozen | Nothing is scanning in the background. `burn-o-meter agent status`, then `agent install` if it is not loaded. |
 | Menu bar shows `—` | No data scanned yet. Run `burn-o-meter scan`. |
-| Menu bar icon missing entirely | The menu bar is full. macOS drops items that no longer fit without warning, and a notched laptop has less room than it looks. Gear menu → **Menu Bar Shows** → *Icon Only* makes burn-o-meter as small as it gets; ⌘-drag other items to reorder or remove them. |
+| Menu bar icon missing after a reboot | Almost always this: nothing is starting the app. macOS only registers a login item for an app in `/Applications`, so one built in place never comes back. Fix both at once with `macos/make-app.sh --install`, then `/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --enable-login-item`. |
+| Menu bar icon missing, and the app *is* running | Now it is the menu bar being full — macOS drops items that no longer fit without warning, and a notched laptop has less room than it looks. Gear menu → **Menu Bar Shows** → *Icon Only* makes it as small as it gets; ⌘-drag other items to reorder or remove them. |
+| Not sure which of those it is | `pgrep -f burn-o-meter.app` — no output means the app is not running, so it is the first row. |
 | A model shows `—` for cost | Genuinely unpriced. `doctor` lists these; burn-o-meter will not invent a rate or fall back to `$0.00`. |
 | Menu bar % differs from the Claude app | The desktop app writes that figure periodically, so it can lag by minutes. The popover shows the reading's age. |
 | Popover looks cut off | Run `--probe-popover` (below). It prints the size the popover actually became, the height its content needs, and the ceiling for your display — please include that in a report. |
@@ -71,6 +73,9 @@ Nothing here is destructive. If you want a clean slate, `rm -rf ~/.burn-o-meter`
 loses nothing permanently — a rescan rebuilds it from your agents' own logs.
 
 # Reporting a bug
+
+Before anything else, `./install.sh` is safe to re-run and fixes most setup problems
+in one step — it re-checks every part of the install rather than assuming.
 
 Open an issue: **[github.com/devopsinside/burn-o-meter/issues](https://github.com/devopsinside/burn-o-meter/issues)**
 

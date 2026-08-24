@@ -221,3 +221,20 @@ def test_readme_documents_the_scripts_it_promises():
     assert "command line tool only" in readme, (
         "README must say plainly that brew/pipx/uv do not install the menu bar app"
     )
+
+
+def test_docs_do_not_contradict_each_other_on_the_login_item():
+    """The troubleshooting table once blamed a full menu bar for a missing icon.
+
+    That is the rarer cause. The common one is that nothing starts the app, because
+    macOS will not register a login item for an app outside /Applications — and a
+    wrong first answer sends people to reorder their menu bar instead of fixing it.
+    """
+    from pathlib import Path
+
+    faq = (Path(__file__).resolve().parent.parent / "docs" / "faq.md").read_text()
+    assert "--enable-login-item" in faq, "troubleshooting must mention the login item fix"
+
+    reboot = faq.index("missing after a reboot")
+    full_bar = faq.index("the menu bar being full")
+    assert reboot < full_bar, "the login-item cause must be listed before the full-menu-bar one"

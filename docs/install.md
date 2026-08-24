@@ -1,8 +1,24 @@
 # Installing burn-o-meter
 
-The short version lives in the [README](../README.md#install). This page covers the cases that need more than one line.
+**Most people want one command**, which does the CLI, the app, the login item and
+background scanning together:
+
+```bash
+git clone https://github.com/devopsinside/burn-o-meter
+cd burn-o-meter && ./install.sh
+```
+
+Safe to re-run. `./uninstall.sh` reverses all of it (`--purge` also deletes your
+data). `./install.sh --help` lists the flags: `--cli-only`, `--no-login`,
+`--no-agent`.
+
+This page covers the cases that need more than that.
 
 Requires **Python 3.11+**. macOS 14+ for the menu bar app.
+
+> **`brew`, `pipx` and `uv` install the command line tool only.** No app is created
+> and nothing appears in your menu bar until you build one — see
+> [the menu bar app](#the-menu-bar-app) below. `./install.sh` does both.
 
 ### The CLI
 
@@ -163,6 +179,10 @@ leak memory and a failed run simply retries. The app also scans when you open th
 popover, so what you see is current.
 
 ## Uninstall
+
+`./uninstall.sh` does all of this in one step and keeps your data unless you pass
+`--purge`. The manual sequence, for reference:
+
 
 Complete removal, in order:
 
