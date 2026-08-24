@@ -8,7 +8,7 @@ class BurnOMeter < Formula
   # releases are immutable and assets attach only at creation. Sourcing from a
   # release asset forces bottles into a second release; this way one holds all.
   url "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/v0.4.0.tar.gz"
-  sha256 "da4019f3a863d3ce5c784c53a3f05056c3654a62048b5be08d4240ca7e65785a"
+  sha256 "3d8ec182368b9ba5bfbe5c013ee0d4d776fbe0032ba569b56a1baf112ccd8428"
   license "MIT"
 
 
