@@ -42,9 +42,9 @@ above want a toolchain burn-o-meter itself never uses. Installing the release
 archive directly needs none of it:
 
 ```bash
-pipx install https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.3/burn_o_meter-0.3.3.tar.gz
+pipx install https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.4/burn_o_meter-0.3.4.tar.gz
 # or
-uv tool install https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.3/burn_o_meter-0.3.3.tar.gz
+uv tool install https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.4/burn_o_meter-0.3.4.tar.gz
 ```
 
 That URL pins a version; check [releases](https://github.com/devopsinside/burn-o-meter/releases)

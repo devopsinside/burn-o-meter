@@ -3,7 +3,11 @@ class BurnOMeter < Formula
 
   desc "See what your AI coding agents really cost, without sending your data anywhere"
   homepage "https://github.com/devopsinside/burn-o-meter"
-  url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.3/burn_o_meter-0.3.3.tar.gz"
+  # The tag archive, not a release asset. GitHub creates it the moment the tag
+  # exists, so bottles can be built before any release — which matters because
+  # releases are immutable and assets attach only at creation. Sourcing from a
+  # release asset forces bottles into a second release; this way one holds all.
+  url "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/v0.3.4.tar.gz"
   sha256 "4974c4ac9fff37b9d61b433be1f0d91260302d4e2de7a815cd4e4617912b4f61"
   license "MIT"
 
@@ -28,13 +32,6 @@ class BurnOMeter < Formula
   resource "rich" do
     url "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz"
     sha256 "edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36"
-  end
-
-  bottle do
-    root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.3.3-bottles"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "8e1a113a707b962cb1a5f95d47a794ad8e8b18d610aff1a171c07b3bc423e18d"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "e0a57dbcebf14d35b2b19e0648e283b6cc6e6debe68525090d376b784eb525be"
-    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "0b77d6e024cd1d26e8d6d8e131ef9a3b051884939b0ade045875a7dd1b91a721"
   end
 
   def install
