@@ -154,6 +154,10 @@ class OpenCodeAdapter:
             # slug for the same reason Claude Code stores `claude-opus-5` rather
             # than `anthropic/claude-opus-5`.
             model = d.get("modelID") or self._nested_model(d) or "unknown"
+            # Kept beside the slug rather than folded into it: the catalog matches
+            # exactly, and this is what separates "no rate is published" from "no
+            # rate exists because it ran on your own hardware".
+            upstream = d.get("providerID") or self._nested_provider(d)
             session = sessions.get(sid, {})
 
             events.append(
@@ -161,6 +165,7 @@ class OpenCodeAdapter:
                     event_key=f"{PROVIDER}:{sid}:{mid}",
                     provider=PROVIDER,
                     model=model,
+                    upstream_provider=upstream,
                     effort=None,
                     ts=self._timestamp(d, created),
                     tokens=self._to_tokens(tokens),
@@ -214,6 +219,11 @@ class OpenCodeAdapter:
     def _nested_model(d: dict) -> str | None:
         m = d.get("model")
         return m.get("modelID") if isinstance(m, dict) else None
+
+    @staticmethod
+    def _nested_provider(d: dict) -> str | None:
+        m = d.get("model")
+        return m.get("providerID") if isinstance(m, dict) else None
 
     @staticmethod
     def _timestamp(d: dict, fallback: int | None) -> datetime:

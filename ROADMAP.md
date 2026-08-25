@@ -21,7 +21,7 @@ read what it wrote, *then* write the adapter.
 
 | | |
 |---|---|
-| **Agents** | Claude Code, Codex CLI, OpenCode |
+| **Agents** | Claude Code, Codex CLI, OpenCode (and anything it routes to, including local models) |
 | **Quota** | Claude (exact, via the desktop app's plan records), Codex (exact) |
 | **Pricing** | 290 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
@@ -46,33 +46,18 @@ reconciliation* rather than a wrong number. That is what the check is for.
 
 *Small. Validates a claim the pricing table already makes.*
 
-### 2. Local models should be `not_metered`, not `unpriced`
-
-Measuring them works — a local `qwen3:0.6b` session is read, reconciled and
-reported. But it lands in `UNPRICED` alongside a hosted model whose rate we merely
-do not know, and those are different facts. `CostBasis.NOT_METERED` already exists
-for exactly this and its docstring already names Ollama; it is only reachable today
-through a catalog entry with 0/0 rates, and a local model has no entry at all.
-
-What it needs: the *upstream* provider on the event. `UsageEvent.provider` is the
-tool ("opencode"), and there is nowhere to record that the tokens came from Ollama
-rather than OpenAI. That is a column on `usage_events` plus a migration, so it is a
-task rather than a patch.
-
-*Small, and it removes a conflation this project refuses everywhere else.*
-
-### 3. Kimi Code
+### 2. Kimi Code
 
 JSONL, structurally close to what we already parse. `~/.kimi`, with a
 `session_index.jsonl` and per-session context history carrying token usage.
 
-### 4. GitHub Copilot CLI
+### 3. GitHub Copilot CLI
 
 Two possible sources — an opt-in OpenTelemetry export, and a session-state
 events log that may exist without it. Which to use gets decided against a real
 install, not from documentation.
 
-### 5. Budgets and alerts
+### 4. Budgets and alerts
 
 "Tell me when today crosses $20" or "when this window is 3× my median" — the
 numbers to answer both already exist; what is missing is a threshold to store and a

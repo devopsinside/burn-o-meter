@@ -20,11 +20,24 @@ without provenance is the thing this project exists to avoid.
   `~/.ollama` holds an SSH keypair and a cache, and `/api/history` and `/api/usage`
   are both 404.
 
-### Known
+### Added
 
-- A local model is reported as `unpriced` when it should be `not_metered` — the
-  first means "we do not know the rate", the second "there is no rate". Closing it
-  needs the upstream provider recorded on the event, which is a schema change.
+- **Local models report `not_metered` rather than `unpriced`.** The first means "we
+  do not know the rate"; the second, "there is no rate" — your own hardware served
+  the tokens. Both show no dollar figure, but only one explains why. `doctor` and
+  the scan summary count them apart.
+- `usage_events.upstream_provider` records who actually served the tokens, since a
+  router like OpenCode reports OpenAI, DeepSeek and a local model through one
+  adapter and only this distinguishes them.
+
+### Changed
+
+- **Schema version 2, with the project's first migration.** `CREATE TABLE IF NOT
+  EXISTS` never alters an existing table, so an upgrade would silently keep the old
+  shape and fail on the first insert. Existing OpenCode rows are dropped so the next
+  scan rebuilds them with the new field — they cannot be repaired in place, because
+  `upsert_events` is `DO NOTHING` by design. Nothing is lost: every row derives from
+  logs the provider still holds. Scan offsets are left alone.
 
 ## [0.4.0] — 2026-08-25
 

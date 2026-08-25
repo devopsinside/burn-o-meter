@@ -184,6 +184,15 @@ class UsageEvent:
     """Grouping label. Derived from ``model`` when left empty."""
 
     effort: str | None = None
+
+    upstream_provider: str | None = None
+    """Who actually served the tokens, when the tool is not the provider.
+
+    ``provider`` names the tool whose logs were read — "opencode". That tool can
+    route anywhere, so the same adapter reports OpenAI, DeepSeek and a model running
+    on this machine, and only this field distinguishes them. It decides whether a
+    figure is unpriced (rate unknown) or not metered (no rate exists), which are
+    different claims. ``None`` for tools that are their own provider."""
     """Codex reasoning effort (``low``..``max``). ``None`` for Claude Code.
 
     A sub-dimension of the model, not part of its identity: effort changes how

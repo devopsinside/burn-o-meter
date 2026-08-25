@@ -398,3 +398,69 @@ def test_not_metered_is_distinct_from_unpriced() -> None:
     assert metered.cost_basis is CostBasis.UNPRICED
     assert planned.cost_basis is CostBasis.NOT_METERED
     assert metered.cost_usd is None and planned.cost_usd is None
+
+
+def test_local_models_are_not_metered_not_unpriced():
+    """ "We do not know the rate" and "there is no rate" are different claims.
+
+    A local model has no catalog entry and never will, so falling through to
+    UNPRICED would report ignorance where the truth is that the user's own
+    hardware served the tokens. Both render without a dollar figure; only one is
+    honest about why.
+    """
+    from datetime import UTC, datetime
+
+    from burnometer.models import CostBasis, TokenCounts, UsageEvent
+    from burnometer.pricing import load_catalog
+    from burnometer.pricing.calculator import price_event
+
+    catalog = load_catalog()
+    local = UsageEvent(
+        event_key="k",
+        provider="opencode",
+        upstream_provider="ollama",
+        model="qwen3:0.6b",
+        ts=datetime.now(UTC),
+        tokens=TokenCounts(input=2050, output=130),
+    )
+    priced = price_event(local, catalog)
+    assert priced.cost_basis is CostBasis.NOT_METERED
+    assert priced.cost_usd is None, "never a dollar figure, not even zero"
+    assert "ollama" in (priced.price_source or "")
+
+
+def test_an_unknown_hosted_model_stays_unpriced():
+    """The contrast that gives the previous test meaning.
+
+    Same missing catalog entry, but served by someone else — so the honest answer
+    is that we do not know the rate, not that none exists.
+    """
+    from datetime import UTC, datetime
+
+    from burnometer.models import CostBasis, TokenCounts, UsageEvent
+    from burnometer.pricing import load_catalog
+    from burnometer.pricing.calculator import price_event
+
+    hosted = UsageEvent(
+        event_key="k2",
+        provider="opencode",
+        upstream_provider="opencode",
+        model="hy3-free",
+        ts=datetime.now(UTC),
+        tokens=TokenCounts(input=100, output=10),
+    )
+    priced = price_event(hosted, load_catalog())
+    assert priced.cost_basis is CostBasis.UNPRICED
+    assert priced.cost_usd is None
+
+
+def test_local_detection_is_case_and_whitespace_tolerant():
+    """Provider ids come from a config file a human wrote."""
+    from burnometer.pricing.calculator import is_local_provider
+
+    assert is_local_provider("Ollama")
+    assert is_local_provider("  ollama  ")
+    assert is_local_provider("LM-Studio")
+    assert not is_local_provider("openai")
+    assert not is_local_provider(None)
+    assert not is_local_provider("")

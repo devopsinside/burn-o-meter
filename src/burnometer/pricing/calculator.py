@@ -27,6 +27,8 @@ from .catalog import Catalog, Price
 __all__ = [
     "compute_cost",
     "is_not_metered",
+    "is_local_provider",
+    "LOCAL_PROVIDERS",
     "price_event",
     "price_events",
     "resolve_basis",
@@ -84,6 +86,20 @@ def compute_cost(tokens: TokenCounts, price: Price) -> tuple[float, str]:
     return usd, note
 
 
+#: Providers that serve tokens from hardware the user already owns. There is no
+#: per-token rate to look up, and never will be, so a missing catalog entry means
+#: *not metered* rather than *unknown* - a distinction this project makes
+#: everywhere else and would otherwise lose exactly here.
+LOCAL_PROVIDERS = frozenset(
+    {"ollama", "lmstudio", "lm-studio", "llamacpp", "llama-cpp", "llama.cpp", "mlx", "local"}
+)
+
+
+def is_local_provider(upstream: str | None) -> bool:
+    """True when the tokens were served by something running on this machine."""
+    return bool(upstream) and upstream.strip().lower() in LOCAL_PROVIDERS
+
+
 def is_not_metered(price: Price) -> bool:
     """True when a model publishes no per-token rate.
 
@@ -113,6 +129,17 @@ def price_event(
     subscription: bool | None = None,
 ) -> UsageEvent:
     """Return a copy of ``event`` carrying a cost and its provenance."""
+    # Checked before the catalog: a local model has no entry and never will, so
+    # falling through to UNPRICED would report "we do not know the rate" when the
+    # truth is "there is no rate". Both show no dollar figure, but only one of them
+    # is honest, and only one tells the user their own hardware is not a bill.
+    if is_local_provider(event.upstream_provider):
+        return event.priced(
+            None,
+            CostBasis.NOT_METERED,
+            f"served locally by {event.upstream_provider} [no per-token rate exists]",
+        )
+
     price = catalog.get(event.model)
     if price is None:
         return event.priced(None, CostBasis.UNPRICED, f"no price for {event.model!r}")

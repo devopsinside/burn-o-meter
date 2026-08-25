@@ -27,7 +27,7 @@ from typing import Any
 from ..models import CostBasis, QuotaSnapshot, TokenCounts, UsageEvent
 from ..safety import harden_path, secure_dir
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 __all__ = ["Store", "ScanState", "SCHEMA_VERSION"]
@@ -68,6 +68,46 @@ def _iso(dt: datetime) -> str:
     return dt.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Bring an existing database up to the current schema.
+
+    ``CREATE TABLE IF NOT EXISTS`` never alters a table that already exists, so a
+    new column has to be added explicitly or every upgrade silently keeps the old
+    shape and fails on the first insert.
+
+    Migrations are keyed on ``PRAGMA user_version`` and must be idempotent: this
+    runs on every open, including on a database that is already current.
+    """
+    version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if version >= SCHEMA_VERSION:
+        return
+
+    have = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "usage_events" not in have:
+        return  # a fresh database; the schema script creates it correctly
+
+    # v1 -> v2: upstream_provider, so a router's events can say who served them.
+    if version < 2:
+        columns = {r[1] for r in conn.execute("PRAGMA table_info(usage_events)")}
+        if "upstream_provider" not in columns:
+            conn.execute("ALTER TABLE usage_events ADD COLUMN upstream_provider TEXT")
+
+        # Rows stored before this column existed cannot be repaired in place:
+        # upsert_events is DO NOTHING by design, so a rescan will not update them.
+        # Only OpenCode rows can carry the field, so only those are dropped, and
+        # the next scan rebuilds them with it set. Nothing is lost - every row is
+        # derived from logs the provider still has, which is why `reset --purge`
+        # is safe for the same reason.
+        #
+        # Scan offsets are deliberately left alone. OpenCode sets
+        # rescan_unchanged, so its database is re-read on every scan regardless of
+        # offsets; clearing them would force a full re-parse of Claude Code and
+        # Codex too, for no benefit.
+        conn.execute("DELETE FROM usage_events WHERE provider = 'opencode'")
+
+    conn.commit()
+
+
 class Store:
     """Owns the connection. Construct via :meth:`open`."""
 
@@ -97,6 +137,7 @@ class Store:
         if not read_only:
             conn.execute("PRAGMA journal_mode = WAL")
             conn.execute("PRAGMA synchronous = NORMAL")
+            _migrate(conn)
             conn.executescript(_SCHEMA_PATH.read_text())
             # sql-audited: PRAGMA cannot take a bound parameter; the value is
             # our own int constant, asserted below, never user input.
@@ -146,11 +187,11 @@ class Store:
                 """
                 INSERT INTO usage_events (
                     event_key, provider, session_id, project, git_branch,
-                    model, model_family, effort, ts,
+                    model, model_family, effort, upstream_provider, ts,
                     input_tokens, output_tokens, reasoning_tokens,
                     cache_read_tokens, cache_write_5m_tokens, cache_write_1h_tokens,
                     cost_usd, cost_basis, price_source, raw_file, raw_line
-                ) VALUES (?,?,?,?,?, ?,?,?,?, ?,?,?, ?,?,?, ?,?,?,?,?)
+                ) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?,?,?)
                 ON CONFLICT(event_key) DO NOTHING
                 """,
                 rows,
@@ -170,6 +211,7 @@ class Store:
             e.model,
             e.model_family,
             e.effort,
+            e.upstream_provider,
             _iso(e.ts),
             t.input,
             t.output,
@@ -394,6 +436,13 @@ class Store:
             "unpriced": int(
                 c.execute(
                     "SELECT COUNT(*) FROM usage_events WHERE cost_basis = 'unpriced'"
+                ).fetchone()[0]
+            ),
+            # Counted apart from unpriced on purpose: one means the rate is
+            # unknown, the other that no rate exists.
+            "not_metered": int(
+                c.execute(
+                    "SELECT COUNT(*) FROM usage_events WHERE cost_basis = 'not_metered'"
                 ).fetchone()[0]
             ),
             "earliest": c.execute("SELECT MIN(ts) FROM usage_events").fetchone()[0],

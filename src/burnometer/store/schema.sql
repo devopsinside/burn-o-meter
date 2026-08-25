@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS usage_events (
     model        TEXT NOT NULL,
     model_family TEXT NOT NULL,
     effort       TEXT,
+    -- Who served the tokens, when the tool is not the provider. NULL for tools
+    -- that are their own provider; 'ollama' or 'openai' for a router like
+    -- OpenCode. Decides unpriced (rate unknown) from not_metered (no rate).
+    upstream_provider TEXT,
     ts           TEXT NOT NULL,
 
     input_tokens          INTEGER NOT NULL DEFAULT 0,

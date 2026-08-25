@@ -11,6 +11,7 @@ import pytest
 
 from burnometer.models import CostBasis, QuotaSnapshot, QuotaSource, TokenCounts, UsageEvent
 from burnometer.store import Store
+from burnometer.store.db import SCHEMA_VERSION
 
 
 def _event(key: str = "k1", **kw) -> UsageEvent:
@@ -28,7 +29,7 @@ def _event(key: str = "k1", **kw) -> UsageEvent:
 
 
 def test_schema_version_and_tables(store: Store) -> None:
-    assert store.schema_version == 1
+    assert store.schema_version == SCHEMA_VERSION
     assert store.count_events() == 0
 
 
@@ -192,3 +193,66 @@ def test_not_metered_must_have_null_cost(store: Store) -> None:
 def test_not_metered_stores_with_null_cost(store: Store) -> None:
     store.upsert_events([_event("x", cost_basis=CostBasis.NOT_METERED, cost_usd=None)])
     assert store.count_events() == 1
+
+
+def test_migration_adds_the_column_to_an_existing_v1_database(tmp_path: Path) -> None:
+    """`CREATE TABLE IF NOT EXISTS` never alters a table that already exists.
+
+    Without an explicit migration an upgrade keeps the old shape and fails on the
+    first insert, which is the worst possible moment to find out.
+    """
+    db = tmp_path / "old.db"
+    conn = sqlite3.connect(db)
+    # A v1 table: everything except upstream_provider.
+    conn.executescript(
+        """
+        CREATE TABLE usage_events (
+            event_key TEXT PRIMARY KEY, provider TEXT NOT NULL, session_id TEXT,
+            project TEXT, git_branch TEXT, model TEXT NOT NULL,
+            model_family TEXT NOT NULL, effort TEXT, ts TEXT NOT NULL,
+            input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0,
+            reasoning_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_write_5m_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_write_1h_tokens INTEGER NOT NULL DEFAULT 0,
+            cost_usd REAL, cost_basis TEXT NOT NULL, price_source TEXT,
+            raw_file TEXT, raw_line INTEGER);
+        CREATE TABLE scan_state (path_key TEXT PRIMARY KEY, path_label TEXT, inode INTEGER,
+            size INTEGER, mtime_ns INTEGER, offset INTEGER NOT NULL DEFAULT 0, last_scan TEXT);
+        INSERT INTO usage_events (event_key, provider, model, model_family, ts, cost_basis)
+        VALUES ('a', 'claude_code', 'claude-opus-5', 'claude-opus',
+                '2026-01-01T00:00:00+00:00', 'unpriced'),
+               ('b', 'opencode', 'qwen3:0.6b', 'qwen3',
+                '2026-01-01T00:00:00+00:00', 'unpriced');
+        INSERT INTO scan_state (path_key, offset) VALUES ('k', 4096);
+        PRAGMA user_version = 1;
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    with Store.open(db) as store:
+        assert store.schema_version == SCHEMA_VERSION
+        cols = {r[1] for r in store._conn.execute("PRAGMA table_info(usage_events)")}
+        assert "upstream_provider" in cols
+
+        keys = {r[0] for r in store._conn.execute("SELECT event_key FROM usage_events")}
+        # OpenCode rows are dropped so the next scan rebuilds them with the field;
+        # upsert is DO NOTHING, so they could never be repaired in place.
+        assert keys == {"a"}, "only opencode rows should be dropped"
+
+        # Offsets survive: OpenCode re-reads regardless, and clearing them would
+        # force a needless full re-parse of every other provider.
+        offset = store._conn.execute("SELECT offset FROM scan_state WHERE path_key='k'").fetchone()
+        assert offset[0] == 4096
+
+
+def test_migration_is_idempotent(tmp_path: Path) -> None:
+    """It runs on every open, including on a database that is already current."""
+    db = tmp_path / "x.db"
+    with Store.open(db) as store:
+        first = store.schema_version
+    with Store.open(db) as store:
+        assert store.schema_version == first
+        cols = {r[1] for r in store._conn.execute("PRAGMA table_info(usage_events)")}
+        assert "upstream_provider" in cols

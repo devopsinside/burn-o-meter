@@ -57,6 +57,12 @@ class ScanReport:
     """New events for which no price is known. Stored with cost NULL, shown as
     '—', and never counted as zero."""
     unpriced_models: set[str] = field(default_factory=set)
+
+    events_not_metered: int = 0
+    """New events with no per-token rate to apply, because none exists — local
+    inference, or a plan-included model. Counted apart from unpriced: that means
+    the rate is unknown, this means there is nothing to know."""
+    not_metered_models: set[str] = field(default_factory=set)
     quotas_new: int = 0
     duration_s: float = 0.0
     pruned: dict[str, int] = field(default_factory=dict)
@@ -184,8 +190,14 @@ def _scan_one(
 
     for event in priced:
         if event.cost_usd is None:
-            report.events_unpriced += 1
-            report.unpriced_models.add(event.model)
+            # Both carry no figure, and conflating them would undo the reason the
+            # two bases exist.
+            if event.cost_basis is CostBasis.NOT_METERED:
+                report.events_not_metered += 1
+                report.not_metered_models.add(event.model)
+            else:
+                report.events_unpriced += 1
+                report.unpriced_models.add(event.model)
 
     report.files_parsed += 1
     report.lines_read += result.lines_read

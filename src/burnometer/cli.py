@@ -145,7 +145,12 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     st.add_row("billing", "\n".join(bases))
 
     if s["unpriced"]:
-        st.add_row("unpriced events", f"[yellow]{s['unpriced']:,}[/yellow] (shown as '—')")
+        st.add_row("unpriced events", f"[yellow]{s['unpriced']:,}[/yellow] (rate unknown)")
+        if s.get("not_metered"):
+            st.add_row(
+                "not metered",
+                f"[dim]{s['not_metered']:,}[/dim] (no per-token rate exists)",
+            )
     if s["earliest"]:
         st.add_row("range", f"{s['earliest']} .. {s['latest']}")
     console.print(st)
@@ -264,6 +269,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
             "integrity",
             f"[{style}]{passed}/{report.integrity_checks}[/{style}] sessions reconcile "
             f"with the provider's own totals",
+        )
+    if report.events_not_metered:
+        models = ", ".join(sorted(report.not_metered_models)[:3])
+        t.add_row(
+            "not metered",
+            f"[dim]{report.events_not_metered:,}[/dim] ({models}) — no per-token rate exists",
         )
     if report.events_unpriced:
         models = ", ".join(sorted(report.unpriced_models)[:3])
