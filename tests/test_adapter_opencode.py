@@ -170,3 +170,24 @@ def test_adapter_never_touches_credential_or_content_tables():
     assert queried == READABLE_TABLES, (
         f"declared {sorted(READABLE_TABLES)} but queries {sorted(queried)}"
     )
+
+
+def test_the_fixture_is_actually_committed():
+    """A fixture that exists only on the machine that made it is not a fixture.
+
+    `.gitignore` carries `*.db` to keep the user's own database out of the repo,
+    and it swallowed this file too — so these tests passed locally and failed on
+    CI, which is the worst place to learn it. Checked here rather than left to CI,
+    because the split can survive days before anyone notices.
+    """
+    import subprocess
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", str(DB)],
+        capture_output=True,
+        cwd=DB.parent,
+    )
+    assert tracked.returncode == 0, (
+        f"{DB.name} is not tracked by git — CI will not have it. "
+        "Check .gitignore does not swallow test fixtures."
+    )

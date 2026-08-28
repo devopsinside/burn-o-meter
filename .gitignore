@@ -12,6 +12,10 @@ build/
 .pytest_cache/
 .ruff_cache/
 *.db
+# ...but test fixtures are source, not user data. Without this the OpenCode
+# fixture is silently untracked: tests pass on the machine that generated it and
+# fail on CI, which is the worst possible split.
+!tests/fixtures/**/*.db
 *.db-wal
 *.db-shm
 .DS_Store
