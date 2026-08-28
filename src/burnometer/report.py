@@ -17,6 +17,7 @@ from .analytics import Block, BlockReport, Report, Row, Totals
 from .models import CostBasis
 
 __all__ = [
+    "plural",
     "parse_since",
     "format_cost",
     "format_tokens",
@@ -59,6 +60,11 @@ def parse_since(value: str | None) -> datetime | None:
             f"cannot read {value!r} as a time; try 7d, 24h, 2w, today, or 2026-08-01"
         ) from exc
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def plural(count: int, noun: str, suffix: str = "s") -> str:
+    """Return ``count`` and ``noun``, agreeing in number: ``1 request``."""
+    return f"{count:,} {noun}{'' if count == 1 else suffix}"
 
 
 def format_cost(usd: float | None, basis: CostBasis | str | None = None) -> str:

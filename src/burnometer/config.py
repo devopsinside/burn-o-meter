@@ -74,13 +74,32 @@ class BillingConfig:
     claude_code: str = "auto"
     codex: str = "auto"
 
+    #: Any other provider, keyed by adapter name. Held as a mapping rather than
+    #: more fields because the two named above were once the whole list, and a
+    #: fixed set means every new adapter silently ignores its own setting -
+    #: `doctor` advised setting `billing.opencode` while `getattr` fell through to
+    #: the default and the value was never read.
+    others: dict[str, str] = field(default_factory=dict)
+
     def __post_init__(self) -> None:
-        for field_name in ("claude_code", "codex"):
-            value = getattr(self, field_name)
+        for field_name in ("claude_code", "codex", *self.others):
+            value = getattr(self, field_name, None) or self.others.get(field_name)
             if value not in BILLING_MODES:
                 raise ValueError(
                     f"billing.{field_name} must be one of {BILLING_MODES}, got {value!r}"
                 )
+
+    def mode_for(self, provider: str) -> str:
+        """Return the configured mode for ``provider``, or ``auto``.
+
+        The single place a provider name is resolved to a setting. Callers must
+        not reach for ``getattr(billing, provider)`` — that silently returns the
+        default for any provider without its own field, which is every adapter
+        added after the first two.
+        """
+        if provider in ("claude_code", "codex"):
+            return getattr(self, provider)
+        return self.others.get(provider, "auto")
 
     def subscription_for(self, provider: str, *, detected: bool | None = None) -> bool | None:
         """Resolve to ``True``/``False``/``None`` for the pricing calculator.
@@ -89,7 +108,7 @@ class BillingConfig:
         in its logs, which proves a subscription). An explicit config setting
         always wins over detection, so a user can correct us.
         """
-        mode = getattr(self, provider, "auto")
+        mode = self.mode_for(provider)
         if mode == "api":
             return False
         if mode == "subscription":
@@ -132,6 +151,11 @@ class Config:
         return redact_path(self.source_path) if self.source_path else "<defaults>"
 
 
+def _present(raw: dict, *keys: str) -> dict:
+    """Return only the given keys that the config file actually set."""
+    return {k: raw[k] for k in keys if k in raw}
+
+
 def load_config(path: Path | None = None) -> Config:
     """Load configuration, falling back to defaults when no file exists.
 
@@ -146,20 +170,25 @@ def load_config(path: Path | None = None) -> Config:
     with open(cfg_path, "rb") as fh:
         raw = tomllib.load(fh)
 
+    # Only keys the file actually sets are passed through; each dataclass supplies
+    # its own defaults for the rest. Reading a default off the class instead
+    # (``PrivacyConfig.project_paths``) does not work here - these are
+    # ``slots=True`` dataclasses, so the class attribute is a slot descriptor
+    # rather than the default value, and a config file omitting any key raised
+    # ValueError on that descriptor.
     privacy_raw = raw.get("privacy") or {}
-    privacy = PrivacyConfig(
-        project_paths=privacy_raw.get("project_paths", PrivacyConfig.project_paths)
-    )
+    privacy = PrivacyConfig(**_present(privacy_raw, "project_paths"))
+
     billing_raw = raw.get("billing") or {}
     billing = BillingConfig(
-        claude_code=billing_raw.get("claude_code", BillingConfig.claude_code),
-        codex=billing_raw.get("codex", BillingConfig.codex),
+        **_present(billing_raw, "claude_code", "codex"),
+        # Everything else, so a new adapter's setting is honoured the day it lands
+        # rather than the day someone remembers to add a field for it.
+        others={k: v for k, v in billing_raw.items() if k not in ("claude_code", "codex")},
     )
+
     retention_raw = raw.get("retention") or {}
-    retention = RetentionConfig(
-        quota_days=retention_raw.get("quota_days", RetentionConfig.quota_days),
-        events_days=retention_raw.get("events_days", RetentionConfig.events_days),
-    )
+    retention = RetentionConfig(**_present(retention_raw, "quota_days", "events_days"))
     return Config(privacy=privacy, billing=billing, retention=retention, source_path=cfg_path)
 
 

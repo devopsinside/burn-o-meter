@@ -33,6 +33,7 @@ from .report import (
     blocks_table,
     format_cost,
     parse_since,
+    plural,
     report_table,
     report_to_dict,
 )
@@ -131,7 +132,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     with Store.open(db_path, read_only=True) as store:
         bases = []
         for provider in s["providers"]:
-            mode = getattr(cfg.billing, provider, "auto")
+            mode = cfg.billing.mode_for(provider)
             detected = detect_subscription_in_store(store, provider)
             if mode == "api":
                 how, basis = "set in config", "real spend"
@@ -140,7 +141,15 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             elif detected:
                 how, basis = "detected", "API-equivalent"
             else:
-                how, basis = "assumed — set [billing] if you pay per token", "API-equivalent"
+                # Escaped: rich reads a bare [billing] as a style tag and deletes
+                # it, leaving "set  if you pay per token" — an instruction with the
+                # name of the thing to set removed. Naming the key outright is more
+                # use than naming the section anyway.
+                how, basis = (
+                    f'assumed — set [cyan]billing.{provider} = "api"[/cyan] in '
+                    "config.toml if you pay per token",
+                    "API-equivalent",
+                )
             bases.append(f"{provider}: {basis} ({how})")
     st.add_row("billing", "\n".join(bases))
 
@@ -411,7 +420,8 @@ def _print_subtotals(report) -> None:
     for basis, totals in report.subtotals.items():
         console.print(
             f"  [bold]{format_cost(totals.cost_usd, basis)}[/bold] "
-            f"across {totals.requests:,} requests   [dim]{BASIS_NOTE.get(basis, '')}[/dim]"
+            f"across {plural(totals.requests, 'request')}   "
+            f"[dim]{BASIS_NOTE.get(basis, '')}[/dim]"
         )
     if len(report.subtotals) > 1:
         console.print(
@@ -521,7 +531,8 @@ def cmd_today(args: argparse.Namespace) -> int:
         console.print()
         console.print(
             f"  [bold]current 5h window[/bold]  "
-            f"{format_cost(current.cost_usd, current.basis)} over {current.requests:,} requests"
+            f"{format_cost(current.cost_usd, current.basis)} over "
+            f"{plural(current.requests, 'request')}"
             f" · ~{mins // 60}h{mins % 60:02d}m left"
         )
         if ratio is not None:

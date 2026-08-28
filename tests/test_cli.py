@@ -301,3 +301,44 @@ def test_changelog_has_an_entry_for_the_current_version():
     assert f"/v{__version__}" in link.group(1), (
         f"the {__version__} link points at {link.group(1)!r}"
     )
+
+
+def test_doctor_billing_advice_actually_works(
+    burn_home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Following doctor's own instruction must change what doctor reports.
+
+    ``doctor`` prints ``set billing.<provider> = "api"`` for anything it priced
+    as API-equivalent by assumption. It resolved the provider with
+    ``getattr(cfg.billing, provider)``, which returns the default for every
+    provider the dataclass does not name — so the advice was a no-op and the
+    label never changed.
+
+    Deliberately exercised with **opencode**, not claude_code: the broken lookup
+    worked fine for the two providers that have their own dataclass field, and a
+    test using one of those passes with the bug fully present.
+    """
+    from burnometer.adapters.base import LogSource
+    from burnometer.adapters.opencode import OpenCodeAdapter
+    from burnometer.scan import scan
+    from burnometer.store import Store
+
+    fixtures = Path(__file__).parent / "fixtures" / "opencode"
+
+    class Scoped(OpenCodeAdapter):
+        def sources(self):
+            return [LogSource(root=fixtures, glob="opencode.db")]
+
+    burn_home.mkdir(parents=True, exist_ok=True)
+    with Store.open(burn_home / "burn.db") as store:
+        scan(store, adapters=[Scoped()])
+
+    capsys.readouterr()
+    assert main(["doctor"]) == 0
+    assert 'set billing.opencode = "api"' in capsys.readouterr().out
+
+    (burn_home / "config.toml").write_text('[billing]\nopencode = "api"\n')
+    capsys.readouterr()
+    assert main(["doctor"]) == 0
+    out = capsys.readouterr().out
+    assert "opencode: real spend (set in config)" in out, out

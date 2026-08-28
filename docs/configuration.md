@@ -1,6 +1,7 @@
 # Configuration
 
-All optional — burn-o-meter works with no config at all.
+All optional — burn-o-meter works with no config at all, and every key below is
+independent. Set only the ones you care about; anything omitted keeps its default.
 
 Optional, at `~/.burn-o-meter/config.toml`:
 
@@ -23,8 +24,11 @@ project_paths = "basename"
 # your real spend is labelled API-equivalent, which reads as hypothetical.
 # `burn-o-meter doctor` shows which basis is in effect and whether it was
 # detected or assumed.
+#
+# One key per agent, named exactly as `burn-o-meter doctor` reports it.
 claude_code = "auto"
 codex = "auto"
+opencode = "auto"
 
 [retention]
 # Quota readings are sampled continuously — Claude's desktop app writes one
