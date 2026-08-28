@@ -41,6 +41,15 @@ jobs:
       - name: Test
         run: pytest -q
 
+      # Again at a different width. The report tables wrap to the terminal, so a
+      # test asserting on a sentence can pass at one width and fail at another -
+      # a real assertion was green locally at 120 and red here at 80, because 80
+      # was the only width anything ever ran at.
+      - name: Test (narrow and wide terminals)
+        run: |
+          COLUMNS=60 pytest -q
+          COLUMNS=200 pytest -q
+
   scripts:
     name: shell scripts lint
     runs-on: ubuntu-latest

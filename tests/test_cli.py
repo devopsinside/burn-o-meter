@@ -23,14 +23,53 @@ def test_doctor_runs_with_no_database(burn_home: Path, capsys: pytest.CaptureFix
     assert "no database yet" in out
 
 
+def flat(text: str) -> str:
+    """Collapse rich's line wrapping so assertions do not depend on width.
+
+    The doctor table wraps to the terminal, so a string that fits on one line at
+    80 columns is split at 60 and joined differently at 120. Tests asserting on
+    prose have to compare against the unwrapped text or they only pass at
+    whatever width CI happens to use.
+    """
+    return " ".join(text.split())
+
+
+#: Rich's box-drawing characters, stripped when checking that a value is present
+#: somewhere in a table - a folded cell puts a border between the halves of a URL.
+_BORDERS = str.maketrans("", "", "┏┓┗┛┡┩├┤┬┴┼─━│┃╇╈╪╡╞")
+
+
+def disclosed(text: str) -> str:
+    """Text with wrapping and table borders removed.
+
+    ``https://models.dev/api.json`` renders as ``https://models.d`` on one row
+    and ``ev/api.json`` on the next in a narrow pane, with a cell border between
+    them. Asserting a value is *present* has to survive that.
+    """
+    return "".join(text.translate(_BORDERS).split())
+
+
+def squeezed(text: str) -> str:
+    """Remove *all* whitespace - for checking that something never appears.
+
+    A path wrapped mid-token reads as ``/Users/fired`` + ``up``, which no
+    substring check for the whole path would ever match. Absence has to be
+    asserted against text that cannot hide a token in a line break.
+    """
+    return "".join(text.split())
+
+
 def test_doctor_security_lists_every_guarantee(
-    burn_home: Path, capsys: pytest.CaptureFixture[str]
+    burn_home: Path, capsys: pytest.CaptureFixture[str], wide_console: None
 ) -> None:
     assert main(["doctor", "--security"]) == 0
-    out = capsys.readouterr().out
+    capsys_out = capsys.readouterr().out
+    out = flat(capsys_out)
     for gid in ("G1", "G2", "G3", "G4", "G5", "G6", "G7"):
         assert gid in out, f"{gid} missing from security report"
-    assert "models.dev" in out, "the single egress point must be disclosed"
+    assert "https://models.dev/api.json" in disclosed(capsys_out), (
+        "the single egress point must be disclosed in full, not elided to fit"
+    )
     assert "No telemetry" in out
 
 
@@ -40,7 +79,11 @@ def test_doctor_output_does_not_leak_home_path(
     """G6: reports are safe to paste into a bug report."""
     main(["doctor"])
     out = capsys.readouterr().out
-    assert str(Path.home()) not in out, "absolute home path leaked into doctor output"
+    # Squeezed, not raw: the table wraps, and a home path broken across two lines
+    # would slip past a plain substring check while still being fully disclosed.
+    assert squeezed(str(Path.home())) not in squeezed(out), (
+        "absolute home path leaked into doctor output"
+    )
 
 
 def test_no_subcommand_exits_nonzero() -> None:
@@ -108,7 +151,9 @@ def test_blocks_output_disclaims_the_missing_denominator(
     _seed(burn_home)
     capsys.readouterr()
     assert main(["blocks"]) == 0
-    out = capsys.readouterr().out.replace("\n", " ")
+    # flat(), not a newline replace: rich pads wrapped prose to justify it, so
+    # "percent of limit" broken across lines rejoins with two spaces.
+    out = flat(capsys.readouterr().out)
     assert "percent of limit" in out
     assert "invented" in out
 
@@ -333,12 +378,15 @@ def test_doctor_billing_advice_actually_works(
     with Store.open(burn_home / "burn.db") as store:
         scan(store, adapters=[Scoped()])
 
-    capsys.readouterr()
-    assert main(["doctor"]) == 0
-    assert 'set billing.opencode = "api"' in capsys.readouterr().out
+    # flat(), because rich wraps the table to the terminal width - CI runs at 80
+    # columns and this assertion passed only on a wide terminal when written.
+    def doctor_output() -> str:
+        capsys.readouterr()
+        assert main(["doctor"]) == 0
+        return flat(capsys.readouterr().out)
+
+    assert 'set billing.opencode = "api"' in doctor_output()
 
     (burn_home / "config.toml").write_text('[billing]\nopencode = "api"\n')
-    capsys.readouterr()
-    assert main(["doctor"]) == 0
-    out = capsys.readouterr().out
+    out = doctor_output()
     assert "opencode: real spend (set in config)" in out, out

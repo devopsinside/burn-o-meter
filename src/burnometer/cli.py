@@ -193,7 +193,10 @@ def _doctor_security() -> int:
 
     e = Table(show_header=True, header_style="bold", title="Network egress", title_justify="left")
     e.add_column("when")
-    e.add_column("destination")
+    # Folded rather than truncated: this table *is* the egress disclosure, and in a
+    # narrow pane rich shortened the destination to "https://models.dev/api…",
+    # eliding the one thing the row exists to state.
+    e.add_column("destination", overflow="fold")
     e.add_column("sends")
     e.add_row(
         "burn-o-meter pricing refresh [dim](manual only)[/dim]",

@@ -131,3 +131,20 @@ def shift_plan_history_to_now(source: Path, dest_dir: Path) -> Path:
     out = dest_dir / source.name
     out.write_text(json.dumps(document))
     return out
+
+
+@pytest.fixture
+def wide_console(monkeypatch: pytest.MonkeyPatch):
+    """Pin the report width so assertions on prose do not depend on the terminal.
+
+    ``cli.console`` reads its width once, at import, from ``COLUMNS`` or the tty.
+    A test asserting that some sentence appears in the output therefore passes or
+    fails on the width of whoever ran it - CI uses 80, and an assertion written
+    at 120 sailed through locally and broke there.
+    """
+    from burnometer import cli
+
+    original = cli.console.width
+    monkeypatch.setattr(cli.console, "width", 200)
+    yield
+    cli.console.width = original
