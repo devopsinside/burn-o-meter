@@ -90,3 +90,44 @@ def fake_agent_tree(tmp_path: Path) -> Path:
     os.symlink(root / ".codex" / "auth.json", disguised)
 
     return root
+
+
+def shift_plan_history_to_now(source: Path, dest_dir: Path) -> Path:
+    """Copy the Claude plan-usage fixture with its timestamps ending at 'now'.
+
+    The adapter drops samples older than HISTORY_DAYS, so a fixture with absolute
+    timestamps is a time bomb: green the day it is written, red a week later, with
+    nothing in the product having changed. That is exactly what happened — five
+    adapter tests and one security test went red four days after the fixture was
+    committed.
+
+    Shifting the whole series preserves the spacing the tests care about (the
+    sawtooth, the reset, the gaps) while keeping it inside the window forever. The
+    fixture's deliberately malformed entries are left exactly as broken as they
+    were, because skipping them is what several tests check.
+    """
+    import json
+    from datetime import UTC, datetime
+
+    document = json.loads(source.read_text())
+    samples = document.get("samples", [])
+
+    def timestamp_of(sample: object) -> int | None:
+        if isinstance(sample, dict) and isinstance(sample.get("t"), int):
+            return sample["t"]
+        return None
+
+    stamps = [t for t in map(timestamp_of, samples) if t is not None]
+    assert stamps, "the fixture must contain at least one usable timestamp"
+
+    # A few minutes ago, not exactly now, so nothing depends on the test running
+    # within the same millisecond.
+    target = int(datetime.now(UTC).timestamp() * 1000) - 5 * 60 * 1000
+    shift = target - max(stamps)
+    for sample in samples:
+        if timestamp_of(sample) is not None:
+            sample["t"] += shift
+
+    out = dest_dir / source.name
+    out.write_text(json.dumps(document))
+    return out

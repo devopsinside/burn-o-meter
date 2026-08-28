@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from conftest import shift_plan_history_to_now
 
 from burnometer.adapters.claude_desktop import HISTORY_DAYS, ClaudeDesktopAdapter
 from burnometer.models import QuotaSource
@@ -26,8 +27,14 @@ def adapter() -> ClaudeDesktopAdapter:
 
 
 @pytest.fixture
-def parsed(adapter: ClaudeDesktopAdapter):
-    return adapter.parse(FIXTURES / "plan-usage-history.json", FIXTURES)
+def plan_history(tmp_path: Path) -> Path:
+    """The committed fixture, with timestamps shifted to end at 'now'."""
+    return shift_plan_history_to_now(FIXTURES / "plan-usage-history.json", tmp_path)
+
+
+@pytest.fixture
+def parsed(adapter: ClaudeDesktopAdapter, plan_history: Path):
+    return adapter.parse(plan_history, plan_history.parent)
 
 
 def _window(parsed, name: str):

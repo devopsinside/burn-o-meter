@@ -14,6 +14,7 @@ import stat
 from pathlib import Path
 
 import pytest
+from conftest import shift_plan_history_to_now
 
 from burnometer import safety
 from burnometer.safety import (
@@ -534,8 +535,15 @@ def test_claude_plan_usage_org_id_never_reaches_the_store(burn_home: Path) -> No
     from burnometer.snapshot import write_snapshot
     from burnometer.store import Store
 
-    fixtures = Path(__file__).parent / "fixtures" / "claude_desktop"
-    assert b"CANARY-ORG-ID" in (fixtures / "plan-usage-history.json").read_bytes()
+    source = Path(__file__).parent / "fixtures" / "claude_desktop" / "plan-usage-history.json"
+    assert b"CANARY-ORG-ID" in source.read_bytes()
+
+    # Shifted to end at 'now': the adapter drops samples older than HISTORY_DAYS,
+    # so an aged fixture produces no readings and this test would grep an empty
+    # store and pass without checking anything. The assertion below caught that.
+    fixtures = burn_home / "fixture"
+    fixtures.mkdir(parents=True, exist_ok=True)
+    shift_plan_history_to_now(source, fixtures)
 
     class Scoped(ClaudeDesktopAdapter):
         def sources(self):
