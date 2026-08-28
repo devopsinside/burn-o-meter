@@ -8,7 +8,7 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
-## [Unreleased]
+## [0.5.0] — 2026-08-29
 
 ### Verified
 
@@ -29,6 +29,17 @@ without provenance is the thing this project exists to avoid.
 - `usage_events.upstream_provider` records who actually served the tokens, since a
   router like OpenCode reports OpenAI, DeepSeek and a local model through one
   adapter and only this distinguishes them.
+
+### Fixed
+
+- **The OpenCode test fixture was never committed.** `.gitignore` carries `*.db` to
+  keep the user's own database out of the repository, and it caught the fixture too
+  — so those tests passed locally and errored on every CI run. Fixtures are source,
+  not user data; a test now asserts this one is tracked.
+- **Six tests decayed with the calendar.** The Claude plan-usage fixture carried
+  absolute timestamps while the adapter drops samples older than seven days, so
+  they were always going to expire, and did, exactly a week later. The fixture is
+  now shifted to end at "now", preserving the spacing the tests rely on.
 
 ### Changed
 
@@ -158,6 +169,7 @@ without provenance is the thing this project exists to avoid.
 First alpha. Claude Code and Codex adapters, TTL-aware pricing, SQLite storage,
 the macOS menu bar app, and the security guarantees with their enforcing tests.
 
+[0.5.0]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.5.0
 [0.4.0]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.4.0
 [0.3.4]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.3.4
 [0.3.1]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.3.1

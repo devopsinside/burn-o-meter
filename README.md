@@ -4,7 +4,7 @@
 and rate limits — all read from files already on your machine. No account, no
 telemetry, nothing sent anywhere.
 
-> **Status: alpha (v0.4.0).** The CLI and the macOS menu bar app both work end to
+> **Status: alpha (v0.5.0).** The CLI and the macOS menu bar app both work end to
 > end for Claude Code and Codex. Tested on macOS 14+; the CLI is portable but
 > Windows and Linux are not yet verified.
 
