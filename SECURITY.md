@@ -24,8 +24,9 @@ stopped; and any network call outside `pricing refresh`.
 
 | Asset | Where it lives | Risk if mishandled |
 |---|---|---|
-| Conversation transcripts | `~/.claude/projects/*/*.jsonl` | Full prompts and completions — pasted secrets, proprietary source, customer data |
-| Codex rollouts | `~/.codex/sessions/**/rollout-*.jsonl` | The same, plus system prompts |
+| Claude Code transcripts | `~/.claude/projects/*/*.jsonl` | Full prompts and completions — pasted secrets, proprietary source, customer data |
+| Codex CLI rollouts | `~/.codex/sessions/**/rollout-*.jsonl` | The same, plus system prompts |
+| Claude (plan usage) records | `~/Library/Application Support/Claude/plan-usage-history.json` | Plan utilisation and the account's organisation id |
 | OpenCode messages | the `part` table in `~/.local/share/opencode/opencode.db` | Conversation text, in the same file as the usage we read |
 | Kimi Code prompts | `turn.prompt` and `context.append_message` in `wire.jsonl` | What you typed, verbatim, in the same file as the usage we read |
 | **Credentials** | `~/.codex/auth.json`, `~/.gemini/oauth_creds.json`, `~/.claude/sessions/*.key`, `~/.local/share/opencode/auth.json`, the `account` / `credential` tables in `opencode.db`, `api_key` in `~/.kimi-code/config.toml` | Account takeover. **These sit inside directories we scan — two of them inside the very file we read.** |
