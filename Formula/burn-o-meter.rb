@@ -9,6 +9,13 @@ class BurnOMeter < Formula
   # release asset forces bottles into a second release; this way one holds all.
   url "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/v0.6.0.tar.gz"
   sha256 "266f41b2c2ffb6a057786c05a20223a47c91c51eb45a541ea2b2a9482fb2637f"
+
+  bottle do
+    root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.0"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "2147afb3dd6016fe3b9f8949a30218b923cd01301fcf381c3d2a5d61c0fcf53b"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "9c104790bd8589b4052d5577c8e1e8a02a7c1535b3e18acdedf87bb6e719c230"
+    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "7f6ddd1d7f5f0aeaba29f7fe0a2c57362c5ae0a20bc5f4f4858304f8fa1e14f3"
+  end
   license "MIT"
 
 
