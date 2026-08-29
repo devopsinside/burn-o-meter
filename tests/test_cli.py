@@ -414,27 +414,39 @@ def test_every_shipped_adapter_is_documented() -> None:
         name = adapter.display_name
         assert name in readme, f"{name} is not in the README's supported-agents section"
 
-        # SECURITY.md must account for the tree, because every adapter so far has
-        # had credentials or prompt text somewhere inside the one it reads.
-        roots = {s.root.name for s in adapter.sources()}
-        assert any(r in security for r in roots) or name in security, (
-            f"{name} reads {sorted(roots)} but SECURITY.md never mentions it"
+        # Matched on the adapter's own name, not on the roots it resolves at
+        # runtime: `sources()` yields only roots that exist, so on a bare CI
+        # runner with no ~/.claude it returns an empty list and the assertion
+        # silently had nothing to check. Naming each agent is also the clearer
+        # document — the table cited paths and never said "Claude Code".
+        assert name in security, (
+            f"SECURITY.md never mentions {name}, though every adapter so far has "
+            "had credentials or prompt text inside the tree it reads"
         )
 
 
 def test_every_relocation_variable_is_documented() -> None:
     """`doctor` names the variable when a location is missing; the docs must too."""
+    import re
     from pathlib import Path
-
-    from burnometer.adapters import get_adapters
 
     root = Path(__file__).resolve().parent.parent
     docs = (root / "README.md").read_text() + (root / "docs" / "faq.md").read_text()
 
-    for adapter in get_adapters():
-        for source in adapter.sources():
-            if source.env_var:
-                assert source.env_var in docs, (
-                    f"{adapter.display_name} can be relocated with {source.env_var}, "
-                    "which appears in neither the README nor the FAQ"
-                )
+    # Read out of the adapter modules rather than from `sources()`, which yields
+    # only roots that exist: on a runner with no agent trees it returns nothing
+    # and this test quietly checked nothing at all.
+    adapters_dir = root / "src" / "burnometer" / "adapters"
+    declared = set(
+        re.findall(
+            r'^\s*ENV_VAR\s*=\s*"([A-Z0-9_]+)"',
+            "\n".join(f.read_text() for f in adapters_dir.glob("*.py")),
+            re.M,
+        )
+    )
+    assert len(declared) >= 4, f"expected one env var per relocatable adapter, found {declared}"
+
+    for env_var in sorted(declared):
+        assert env_var in docs, (
+            f"{env_var} relocates an agent's data but appears in neither the README nor the FAQ"
+        )
