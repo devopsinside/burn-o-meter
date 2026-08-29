@@ -15,6 +15,14 @@ without provenance is the thing this project exists to avoid.
 - **Kimi Code**, read from `~/.kimi-code/sessions/*/*/agents/*/wire.jsonl`. Like
   OpenCode it routes to any provider, so it covers Moonshot's own models and
   anything you run locally. Relocatable via `KIMI_CODE_HOME`.
+- **The packaged pricing snapshot now carries 287 models from 16 vendors, not 132
+  from 6.** `DEFAULT_VENDORS` had been extended with Moonshot, Zhipu, Alibaba,
+  MiniMax and the inference hosts, but the file was never regenerated — so a
+  fresh install could not price Kimi, GLM, Qwen or MiniMax at all, while every
+  test that touched the catalog passed on a machine holding a refreshed copy.
+  Two tests now hold the file to the vendor list and to pricing one model per
+  supported agent, and a third holds the documented model count to what actually
+  ships (the docs said 290; the file had 132).
 - **`billing.<provider>` now works for every agent, not two.** `BillingConfig`
   named `claude_code` and `codex` as fields and resolved with `getattr`, so a
   setting for any adapter added since parsed, validated, and was then discarded —
@@ -34,6 +42,16 @@ without provenance is the thing this project exists to avoid.
   reported as 2,050; at `num_ctx=16384` the same prompt reports 8,011. The figure
   is honest — it is what the model read — and Kimi records it faithfully. It is
   just not the size of what you typed.
+
+### Removed
+
+- `deepseek-chat` and `deepseek-reasoner` no longer carry a rate. models.dev
+  dropped both when regenerating the snapshot, in favour of versioned names like
+  `deepseek-v4-flash`. No rate was carried forward for them: the last figure we
+  held was 8 days old and could not be re-verified without adding a second
+  network destination, and a stale price shown as current is the failure mode
+  this project exists to avoid. Set your own in `~/.burn-o-meter/pricing.toml`
+  if you need them.
 
 ### Fixed
 

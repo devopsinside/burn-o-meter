@@ -106,11 +106,19 @@ def test_a_local_alias_reaches_the_not_metered_path(local_events):
 
 
 def test_the_hosted_model_is_one_the_catalog_can_price(hosted_result):
-    from burnometer.pricing import load_catalog
+    """Against the *packaged* snapshot, which is what a fresh install has.
+
+    Written first against ``load_catalog()``, it passed here and failed on CI:
+    this machine had a refreshed snapshot with 290 models while the packaged one
+    carried 132 and no Moonshot vendor at all. The shipped file is the one that
+    has to price Kimi.
+    """
+    from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT, load_catalog
 
     (event,) = hosted_result.events
-    assert load_catalog().get(event.model) is not None, (
-        "the alias split must land on a slug the catalog knows"
+    catalog = load_catalog(snapshot_path=_PACKAGED_SNAPSHOT, user_path=None)
+    assert catalog.get(event.model) is not None, (
+        "the alias split must land on a slug the packaged catalog knows"
     )
 
 

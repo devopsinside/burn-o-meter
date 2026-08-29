@@ -52,7 +52,7 @@ Full guide, including the invariants that matter, in
 ### Other models
 
 Claude Code and Codex can both be pointed at another provider, so a transcript
-may name a model neither vendor made. Rates ship for **290 models** including
+may name a model neither vendor made. Rates ship for **287 models** including
 DeepSeek, Kimi, GLM, MiniMax and Qwen, so that usage is priced rather than
 landing in the unpriced bucket — no new adapter needed.
 

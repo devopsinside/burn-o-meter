@@ -464,3 +464,68 @@ def test_local_detection_is_case_and_whitespace_tolerant():
     assert not is_local_provider("openai")
     assert not is_local_provider(None)
     assert not is_local_provider("")
+
+
+def test_the_packaged_snapshot_covers_every_vendor_it_claims_to() -> None:
+    """`DEFAULT_VENDORS` names who gets vendored; the file has to match.
+
+    It did not. `moonshotai`, `zhipuai`, `alibaba`, `minimax` and the inference
+    hosts were added to the tuple, but the snapshot was not regenerated — so it
+    shipped 132 models from six vendors while the list named sixteen, and a fresh
+    install could not price Kimi, GLM or Qwen at all. Nothing failed, because
+    every test that touched the catalog ran on a machine with a refreshed copy.
+    """
+    import json
+
+    from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT, DEFAULT_VENDORS
+
+    models = json.loads(_PACKAGED_SNAPSHOT.read_text())["models"]
+    present = {m.get("vendor") for m in models.values()}
+
+    # Not every vendor publishes rates for every model — a vendor legitimately
+    # contributes nothing when models.dev has no cost for any of its entries.
+    # `ollama-cloud` is the known case: local runtimes are listed so their names
+    # resolve, and most carry no price, which is the right answer for self-hosted.
+    expected = set(DEFAULT_VENDORS) - {"ollama-cloud"}
+    missing = expected - present
+    assert not missing, (
+        f"the packaged snapshot has no models for {sorted(missing)} — "
+        "regenerate it with refresh_snapshot() after changing DEFAULT_VENDORS"
+    )
+
+
+def test_the_packaged_snapshot_can_price_a_model_from_every_agent_we_support() -> None:
+    """A shipped adapter whose models cannot be priced is half a feature."""
+    from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT, load_catalog
+
+    catalog = load_catalog(snapshot_path=_PACKAGED_SNAPSHOT, user_path=None)
+    for agent, slug in (
+        ("Claude Code", "claude-opus-5"),
+        ("Codex", "gpt-5.5"),
+        ("Kimi Code", "kimi-k2-turbo-preview"),
+        ("OpenCode → GLM", "glm-4.6"),
+    ):
+        assert catalog.get(slug) is not None, f"{agent}: {slug} has no rate in the shipped snapshot"
+
+
+def test_the_documented_model_count_matches_what_ships() -> None:
+    """The docs stated 290 while the snapshot held 132.
+
+    The number came from a refreshed copy on the author's machine, so it was
+    true where it was written and false for every reader.
+    """
+    import json
+    import re
+    from pathlib import Path
+
+    from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT
+
+    shipped = len(json.loads(_PACKAGED_SNAPSHOT.read_text())["models"])
+    root = Path(__file__).resolve().parent.parent
+
+    for name in ("ROADMAP.md", "docs/adding-an-agent.md"):
+        text = (root / name).read_text()
+        for claimed in re.findall(r"(\d{2,4}) models\b", text):
+            assert int(claimed) == shipped, (
+                f"{name} claims {claimed} models; the packaged snapshot has {shipped}"
+            )
