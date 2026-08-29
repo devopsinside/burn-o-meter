@@ -4,7 +4,7 @@
 and rate limits — all read from files already on your machine. No account, no
 telemetry, nothing sent anywhere.
 
-> **Status: alpha (v0.5.0).** The CLI and the macOS menu bar app both work end to
+> **Status: alpha (v0.6.0).** The CLI and the macOS menu bar app both work end to
 > end for Claude Code and Codex. Tested on macOS 14+; the CLI is portable but
 > Windows and Linux are not yet verified.
 
@@ -196,6 +196,7 @@ that, project-path privacy, custom rates and retention.
 | **Codex CLI** | ✅ | ✅ | **exact** — with reset time | `~/.codex/sessions/**/rollout-*.jsonl` |
 | Claude plan usage | — | — | **exact** — 5-hour and weekly | `~/Library/Application Support/Claude/plan-usage-history.json` |
 | **OpenCode** | ✅ | ✅ | — | `~/.local/share/opencode/opencode.db` |
+| **Kimi Code** | ✅ | ✅ | — | `~/.kimi-code/sessions/*/*/agents/*/wire.jsonl` |
 
 Claude Code's own transcripts carry no quota, so the 5-hour and weekly figures
 come from the Claude desktop app's records — which cover the whole account,
@@ -219,8 +220,13 @@ it.
 
 Also relocatable via `OPENCODE_DATA`.
 
-**On the roadmap, in order:** Kimi Code, then Copilot CLI, then Amp, Droid, Goose
-and Kilo.
+Kimi Code writes a wire log per session, and like OpenCode it can be pointed at any
+provider — so it reaches both Moonshot's own models and anything you run locally.
+Only its `usage.record` entries are billable: each turn also writes two
+`token_counting` records restating the same figure, and adding those would roughly
+double every number. Relocatable via `KIMI_CODE_HOME`.
+
+**On the roadmap, in order:** Copilot CLI, then Amp, Droid, Goose and Kilo.
 
 Each adapter is verified against real output from the tool before it ships, never
 from documentation alone — Codex's per-turn accounting trap looked entirely
@@ -279,7 +285,7 @@ numbers but never computes them, so a disagreement means something is wrong.
 
 Built one at a time, each verified against real output before it ships.
 **Next up:** other providers through the agents we already support, then
-OpenCode — which reaches DeepSeek, Kimi, GLM, Qwen, MiniMax and local models in
+OpenCode and Kimi Code — which reach DeepSeek, GLM, Qwen, MiniMax and local models in
 a single adapter.
 
 Full list, including what will *not* be built and why: **[ROADMAP.md](ROADMAP.md)**

@@ -12,7 +12,14 @@ downloadable. Those two facts pin the sequence below.
 #    A test fails if the README, the docs or the formula disagree with __version__.
 $EDITOR pyproject.toml src/burnometer/__init__.py     # version = / __version__ =
 $EDITOR README.md docs/install.md                     # status line + pinned URLs
-$EDITOR Formula/burn-o-meter.rb                       # url -> the new tag
+$EDITOR Formula/burn-o-meter.rb                       # url -> the new tag, and
+                                                      # DELETE the bottle block:
+                                                      # its checksums belong to
+                                                      # the previous release, and
+                                                      # left in place they point a
+                                                      # new root_url at bottles
+                                                      # that do not exist yet.
+                                                      # Step 7 puts it back.
 pytest -q && ruff check src tests && ruff format --check src tests
 
 # 2. Tag. The source archive exists the moment the tag is pushed — this is what

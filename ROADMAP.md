@@ -11,21 +11,27 @@ documentation and obvious in the data:
 - Codex repeats its final event, so summing its own per-turn figure added
   1,001,920 phantom tokens in one session
 - A published rate of `0` means "included in your plan", not "free"
+- Kimi Code writes two `token_counting` records restating each turn's usage;
+  adding them to the usage record would roughly double every figure
+- Ollama truncates a prompt larger than `num_ctx` and reports the tokens it
+  actually processed — 8,000 tokens sent against the default 4,096-token window
+  are reported as 2,050. The figure is honest; it is just not the size of what
+  you typed. Verified directly against Ollama at two window sizes
 
 None of those would have been caught by reading docs. So: install it, run it,
 read what it wrote, *then* write the adapter.
 
 ---
 
-## Shipped — v0.3.4
+## Shipped — v0.6.0
 
 | | |
 |---|---|
-| **Agents** | Claude Code, Codex CLI, OpenCode (and anything it routes to, including local models) |
+| **Agents** | Claude Code, Codex CLI, OpenCode, Kimi Code (the last two route to anything, including local models) |
 | **Quota** | Claude (exact, via the desktop app's plan records), Codex (exact) |
 | **Pricing** | 290 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
-| **Quality** | 268 tests · security guarantees enforced in CI · reconciled against real logs |
+| **Quality** | 320 tests · security guarantees enforced in CI · reconciled against real logs |
 | **Analytics** | per-model cost, cache hit rate, effective $/Mtok, cache savings, rolling windows |
 | **Install** | `./install.sh` does everything · Homebrew tap with prebuilt bottles · pipx · uv · a release archive needing no toolchain |
 | **macOS app** | app icon · popover sized to the display it opens on · four menu bar title widths |
@@ -46,18 +52,13 @@ reconciliation* rather than a wrong number. That is what the check is for.
 
 *Small. Validates a claim the pricing table already makes.*
 
-### 2. Kimi Code
-
-JSONL, structurally close to what we already parse. `~/.kimi`, with a
-`session_index.jsonl` and per-session context history carrying token usage.
-
-### 3. GitHub Copilot CLI
+### 2. GitHub Copilot CLI
 
 Two possible sources — an opt-in OpenTelemetry export, and a session-state
 events log that may exist without it. Which to use gets decided against a real
 install, not from documentation.
 
-### 4. Budgets and alerts
+### 3. Budgets and alerts
 
 "Tell me when today crosses $20" or "when this window is 3× my median" — the
 numbers to answer both already exist; what is missing is a threshold to store and a

@@ -8,6 +8,58 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [0.6.0] — 2026-08-29
+
+### Added
+
+- **Kimi Code**, read from `~/.kimi-code/sessions/*/*/agents/*/wire.jsonl`. Like
+  OpenCode it routes to any provider, so it covers Moonshot's own models and
+  anything you run locally. Relocatable via `KIMI_CODE_HOME`.
+- **`billing.<provider>` now works for every agent, not two.** `BillingConfig`
+  named `claude_code` and `codex` as fields and resolved with `getattr`, so a
+  setting for any adapter added since parsed, validated, and was then discarded —
+  while `doctor` printed advice telling users to set exactly that.
+
+### Verified
+
+- **Kimi's usage is per turn, not cumulative.** `usageScope` reads `turn` and a
+  three-turn session recorded outputs of 276, 239 and 202 — falling, so not a
+  running total. Checked because Codex looked identical and was cumulative.
+- **Its two `token_counting` records restate the usage record rather than adding
+  to it.** Across 6/6 real turns, `tokens == inputOther + output` exactly. Summing
+  them would have roughly doubled every figure. The identity ships as this
+  adapter's integrity check.
+- **Ollama truncates a prompt larger than `num_ctx` and reports what it actually
+  processed.** 8,000 tokens sent against the default 4,096-token window are
+  reported as 2,050; at `num_ctx=16384` the same prompt reports 8,011. The figure
+  is honest — it is what the model read — and Kimi records it faithfully. It is
+  just not the size of what you typed.
+
+### Fixed
+
+- **A `config.toml` that omitted any key could not be loaded at all.**
+  `load_config` read its fallbacks off the dataclasses themselves, but those use
+  `slots=True`, so the class attribute is a slot descriptor rather than the
+  default value. All five defaults were affected, and the only file that loaded
+  was one setting every key — which is the one the docs show and nobody writes.
+- **`doctor` advised a setting that did nothing.** It printed
+  `set billing.<provider> = "api"` while resolving the mode with its own copy of
+  the broken lookup. A test now asserts that following the instruction changes
+  what `doctor` reports.
+- **The network-egress table let rich elide the destination**, so in a narrow
+  pane the single opt-in egress rendered as `https://models.dev/api…` — a
+  disclosure table dropping the thing it discloses. The column folds now.
+- `across 1 requests`, and three more counts that read `file(s)` / `model(s)`.
+
+### Changed
+
+- Report tests no longer depend on the width of the terminal running them. One
+  assertion was green locally at 120 columns and red on CI at 80; sweeping 30 to
+  400 found two more that passed only at CI's width. CI now runs the suite at 60
+  and 200 as well. The G6 test mattered most: it asserts the home path never
+  appears in `doctor` output, and a path wrapped mid-token would have slipped
+  past a plain substring check while being fully disclosed.
+
 ## [0.5.0] — 2026-08-29
 
 ### Verified
@@ -169,6 +221,7 @@ without provenance is the thing this project exists to avoid.
 First alpha. Claude Code and Codex adapters, TTL-aware pricing, SQLite storage,
 the macOS menu bar app, and the security guarantees with their enforcing tests.
 
+[0.6.0]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.0
 [0.5.0]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.5.0
 [0.4.0]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.4.0
 [0.3.4]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.3.4

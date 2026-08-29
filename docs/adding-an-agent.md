@@ -10,6 +10,7 @@ percentage on every bill:
 | Codex | **inside** `output_tokens` | 174/174 blocks with non-zero reasoning satisfy `input + output == total` |
 | Claude Code | no reasoning field; `output_tokens_details.thinking_tokens` is a **breakdown within** output | 2,444/2,444 blocks, detail never exceeds output |
 | OpenCode | **excluded** from `tokens.output`, but billed at the output rate | its own `cost` matched ours only after adding reasoning |
+| Kimi Code | **no reasoning field at all** — `usage` carries only input, output and the two cache counts | 6/6 turns satisfy `inputOther + output == token_counting.tokens` |
 
 `TokenCounts.reasoning` is display-only and is *not* added to `.total`. An adapter
 whose source excludes reasoning must therefore fold it into `output` itself. Getting

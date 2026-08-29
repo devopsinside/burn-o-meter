@@ -1,0 +1,5 @@
+{"type": "metadata", "protocol_version": "1.5", "created_at": 1787949999000}
+{"type": "turn.prompt", "agentId": "main", "input": "SENTINEL-PROMPT-TEXT-must-never-be-stored", "origin": "cli", "time": 1787949999500}
+{"type": "usage.record", "agentId": "main", "model": "kimi/kimi-k2-turbo-preview", "usage": {"inputOther": 1200, "output": 340, "inputCacheRead": 8000, "inputCacheCreation": 1500}, "usageScope": "turn", "time": 1787950000000}
+{"type": "token_counting.measured", "agentId": "main", "length": 4, "tokens": 1540, "time": 1787950000001}
+{"type": "usage.record", "agentId": "main", "model": "kimi/kimi-k

@@ -256,8 +256,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
         # wrong, so the log stays readable instead of filling with "0 new".
         if report.files_failed or report.integrity_failures:
             console.print(
-                f"[scan] {report.files_failed} file(s) failed, "
-                f"{report.integrity_failures} integrity failure(s)"
+                f"[scan] {plural(report.files_failed, 'file')} failed, "
+                f"{plural(report.integrity_failures, 'integrity failure')}"
             )
             for err in report.errors[:5]:
                 console.print(f"[scan]   {err}")
@@ -298,7 +298,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     console.print(t)
 
     if report.files_failed:
-        console.print(f"\n[yellow]{report.files_failed} file(s) failed[/yellow]")
+        console.print(f"\n[yellow]{plural(report.files_failed, 'file')} failed[/yellow]")
         for err in report.errors[:5]:
             console.print(f"  [dim]{err}[/dim]")
 
@@ -433,7 +433,7 @@ def _print_subtotals(report) -> None:
         )
     if report.unpriced_models:
         console.print(
-            f"  [yellow]{len(report.unpriced_models)} unpriced model(s)[/yellow]: "
+            f"  [yellow]{plural(len(report.unpriced_models), 'unpriced model')}[/yellow]: "
             f"{', '.join(sorted(report.unpriced_models))} [dim]— shown as '—', never $0.00[/dim]"
         )
 
