@@ -54,9 +54,37 @@ reconciliation* rather than a wrong number. That is what the check is for.
 
 ### 2. GitHub Copilot CLI
 
-Two possible sources — an opt-in OpenTelemetry export, and a session-state
-events log that may exist without it. Which to use gets decided against a real
-install, not from documentation.
+**Source settled** — and it is neither of the two this entry used to predict.
+`@github/copilot` 1.0.81 keeps a SQLite store at `~/.copilot/session-store.db`
+with a purpose-built `assistant_usage_events` table, written by default: no
+OpenTelemetry, no `--usage-output-file`, no opt-in of any kind. It carries
+
+```
+model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+reasoning_tokens, total_nano_aiu, request_multiplier, reasoning_effort,
+token_details_json, session_id, turn_index, agent_id, created_at
+```
+
+which is more than any source we already read — all five token classes separated,
+plus `reasoning_effort` mapping straight onto our `effort` field, and Copilot's own
+credit figure in `total_nano_aiu`. `sessions` supplies `cwd`, `repository` and
+`branch` for project attribution.
+
+*Blocked on real data.* This account's Copilot CLI access is refused by an
+organisation policy ("Access denied by policy settings"), so no row has ever been
+written here. The schema cannot answer the questions that have differed for every
+single source so far — whether `reasoning_tokens` sits inside `output_tokens`,
+whether `input_tokens` is net of cache, what `token_details_json` holds, and
+whether a row is written once per turn or repeated. Those get settled against real
+rows or not at all.
+
+**Security, when it is written.** The same file holds `turns.user_message` and
+`turns.assistant_response`, `forge_trajectory_events.command` and `.output`, and
+an FTS5 `search_index` over the conversation — so this is the OpenCode situation
+again and needs the same column-level allowlist, touching only `sessions` and
+`assistant_usage_events`. The auth token goes to the system credential store, but
+`copilot login --help` states it falls back to a plaintext file under `~/.copilot/`
+when no store is available, so the deny-list has to cover that case too.
 
 ### 3. Budgets and alerts
 
