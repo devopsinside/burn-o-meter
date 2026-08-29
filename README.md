@@ -194,7 +194,7 @@ that, project-path privacy, custom rates and retention.
 |---|:-:|:-:|:-:|---|
 | **Claude Code** | ✅ | ✅ | via the row below | `~/.claude/projects/*/*.jsonl` |
 | **Codex CLI** | ✅ | ✅ | **exact** — with reset time | `~/.codex/sessions/**/rollout-*.jsonl` |
-| Claude plan usage | — | — | **exact** — 5-hour and weekly | `~/Library/Application Support/Claude/plan-usage-history.json` |
+| Claude (plan usage) | — | — | **exact** — 5-hour and weekly | `~/Library/Application Support/Claude/plan-usage-history.json` |
 | **OpenCode** | ✅ | ✅ | — | `~/.local/share/opencode/opencode.db` |
 | **Kimi Code** | ✅ | ✅ | — | `~/.kimi-code/sessions/*/*/agents/*/wire.jsonl` |
 

@@ -26,8 +26,10 @@ stopped; and any network call outside `pricing refresh`.
 |---|---|---|
 | Conversation transcripts | `~/.claude/projects/*/*.jsonl` | Full prompts and completions — pasted secrets, proprietary source, customer data |
 | Codex rollouts | `~/.codex/sessions/**/rollout-*.jsonl` | The same, plus system prompts |
-| **Credentials** | `~/.codex/auth.json`, `~/.gemini/oauth_creds.json`, `~/.claude/sessions/*.key` | Account takeover. **These sit inside directories we scan.** |
-| Project paths | `cwd`, `gitBranch` in both formats | Discloses account name, employer, client names, directory layout |
+| OpenCode messages | the `part` table in `~/.local/share/opencode/opencode.db` | Conversation text, in the same file as the usage we read |
+| Kimi Code prompts | `turn.prompt` and `context.append_message` in `wire.jsonl` | What you typed, verbatim, in the same file as the usage we read |
+| **Credentials** | `~/.codex/auth.json`, `~/.gemini/oauth_creds.json`, `~/.claude/sessions/*.key`, `~/.local/share/opencode/auth.json`, the `account` / `credential` tables in `opencode.db`, `api_key` in `~/.kimi-code/config.toml` | Account takeover. **These sit inside directories we scan — two of them inside the very file we read.** |
+| Project paths | `cwd` / `gitBranch` in the Claude and Codex logs, `session.directory` in OpenCode, `workDir` in Kimi's session index | Discloses account name, employer, client names, directory layout |
 | Our database | `~/.burn-o-meter/burn.db` | An aggregate profile of when and how you work |
 
 Adversaries considered:
@@ -85,7 +87,12 @@ Three independent layers, any one of which is sufficient:
 data. A VS Code-style `state.vscdb` holds an OAuth token, the account holder's
 name and email, and application state in one key-value table — opening the file
 is legitimate, reading one of its rows is not, and a filename deny-list cannot
-tell the difference. `safety.select_keys` is the control: an adapter states the
+tell the difference. This is not hypothetical for two shipped adapters:
+`opencode.db` holds `account`, `control_account` and `credential` beside the
+usage, so the OpenCode adapter names its columns and touches only `session` and
+`message`; and Kimi Code keeps `api_key` for every configured provider in
+`~/.kimi-code/config.toml`, which its glob is deliberately four levels deep to
+avoid reaching. `safety.select_keys` is the control: an adapter states the
 keys it needs and receives only those. Enumerating and filtering is explicitly
 the wrong shape, because a key added upstream would then be read by default. An
 adapter that asks for a credential-shaped key raises rather than being quietly

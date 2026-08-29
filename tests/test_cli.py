@@ -390,3 +390,51 @@ def test_doctor_billing_advice_actually_works(
     (burn_home / "config.toml").write_text('[billing]\nopencode = "api"\n')
     out = doctor_output()
     assert "opencode: real spend (set in config)" in out, out
+
+
+def test_every_shipped_adapter_is_documented() -> None:
+    """A supported agent nobody can find is not supported.
+
+    OpenCode shipped in v0.5.0 and reached v0.6.0 without appearing in
+    SECURITY.md at all — while keeping OAuth tokens in the same database file the
+    adapter opens. That is the one document where an omission matters most, and
+    nothing was checking it.
+    """
+    from pathlib import Path
+
+    from burnometer.adapters import get_adapters
+
+    root = Path(__file__).resolve().parent.parent
+    readme = (root / "README.md").read_text()
+    security = (root / "SECURITY.md").read_text()
+
+    for adapter in get_adapters():
+        if not adapter.implemented:
+            continue
+        name = adapter.display_name
+        assert name in readme, f"{name} is not in the README's supported-agents section"
+
+        # SECURITY.md must account for the tree, because every adapter so far has
+        # had credentials or prompt text somewhere inside the one it reads.
+        roots = {s.root.name for s in adapter.sources()}
+        assert any(r in security for r in roots) or name in security, (
+            f"{name} reads {sorted(roots)} but SECURITY.md never mentions it"
+        )
+
+
+def test_every_relocation_variable_is_documented() -> None:
+    """`doctor` names the variable when a location is missing; the docs must too."""
+    from pathlib import Path
+
+    from burnometer.adapters import get_adapters
+
+    root = Path(__file__).resolve().parent.parent
+    docs = (root / "README.md").read_text() + (root / "docs" / "faq.md").read_text()
+
+    for adapter in get_adapters():
+        for source in adapter.sources():
+            if source.env_var:
+                assert source.env_var in docs, (
+                    f"{adapter.display_name} can be relocated with {source.env_var}, "
+                    "which appears in neither the README nor the FAQ"
+                )

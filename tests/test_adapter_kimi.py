@@ -155,6 +155,19 @@ def test_malformed_lines_are_skipped_not_fatal(local_events):
     assert len(local_events) == 3
 
 
+def test_a_repeated_wire_event_is_collapsed_not_counted_twice():
+    """The fixture repeats one usage.record verbatim.
+
+    A wire log is append-only, but nothing guarantees an event is written once -
+    Codex repeats its final event every turn, and reading that naively added
+    1,001,920 phantom tokens to a single session.
+    """
+    r = KimiAdapter().parse(wire(LOCAL), FIXTURE)
+    assert r.duplicates_dropped == 1
+    assert len(r.events) == 3, "the repeat must not become a fourth turn"
+    assert sum(e.tokens.output for e in r.events) == 717
+
+
 def test_project_comes_from_the_index_not_the_directory_slug(local_events, hosted_result):
     assert local_events[0].project == "demo"
     assert hosted_result.events[0].project == "work"
@@ -184,12 +197,12 @@ def test_the_glob_cannot_reach_the_config_that_holds_api_keys(tmp_path):
 def test_the_prompt_text_is_never_read(local_events):
     """``turn.prompt`` and ``context.append_message`` carry what the user typed."""
     raw = wire(LOCAL).read_text()
-    assert "SENTINEL-PROMPT-TEXT" in raw, "guard: the fixture must contain prompt text"
+    assert "CANARY-PROMPT-TEXT" in raw, "guard: the fixture must contain prompt text"
 
     # repr, not __dict__: UsageEvent uses slots, and the point is that no field
     # of the parsed event carries the text however it is serialised.
     blob = json.dumps([repr(e) for e in local_events])
-    assert "SENTINEL-PROMPT-TEXT" not in blob
+    assert "CANARY-PROMPT-TEXT" not in blob
 
 
 def test_the_fixture_is_actually_committed():

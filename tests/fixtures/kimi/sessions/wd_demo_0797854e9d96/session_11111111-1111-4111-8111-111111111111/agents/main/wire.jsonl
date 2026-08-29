@@ -1,10 +1,11 @@
 {"type": "metadata", "protocol_version": "1.5", "created_at": 1787946994731}
-{"type": "turn.prompt", "agentId": "main", "input": "SENTINEL-PROMPT-TEXT-must-never-be-stored alpha", "origin": "cli", "time": 1787946995231}
+{"type": "turn.prompt", "agentId": "main", "input": "CANARY-PROMPT-TEXT alpha", "origin": "cli", "time": 1787946995231}
 {"type": "llm.request", "agentId": "main", "provider": "openai", "model": "qwen3:0.6b", "modelAlias": "lmstudio/qwen3:0.6b", "messageCount": 3, "turnStep": "0.1", "time": 1787946995631}
+{"type": "usage.record", "agentId": "main", "model": "lmstudio/qwen3:0.6b", "usage": {"inputOther": 2050, "output": 276, "inputCacheRead": 0, "inputCacheCreation": 0}, "usageScope": "turn", "time": 1787946995731}
 {"type": "usage.record", "agentId": "main", "model": "lmstudio/qwen3:0.6b", "usage": {"inputOther": 2050, "output": 276, "inputCacheRead": 0, "inputCacheCreation": 0}, "usageScope": "turn", "time": 1787946995731}
 {"type": "token_counting.measured", "agentId": "main", "length": 4, "tokens": 2326, "time": 1787946995732}
 {"type": "token_counting.turn_recorded", "agentId": "main", "turnId": 0, "length": 4, "tokens": 2326, "time": 1787946995733}
-{"type": "turn.prompt", "agentId": "main", "input": "SENTINEL-PROMPT-TEXT-must-never-be-stored beta", "origin": "cli", "time": 1787946999731}
+{"type": "turn.prompt", "agentId": "main", "input": "CANARY-PROMPT-TEXT beta", "origin": "cli", "time": 1787946999731}
 {"type": "usage.record", "agentId": "main", "model": "lmstudio/qwen3:0.6b", "usage": {"inputOther": 2050, "output": 239, "inputCacheRead": 0, "inputCacheCreation": 0}, "usageScope": "turn", "time": 1787947000731}
 {"type": "token_counting.measured", "agentId": "main", "length": 7, "tokens": 2289, "time": 1787947000732}
 { this line is not valid json

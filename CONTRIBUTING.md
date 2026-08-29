@@ -93,7 +93,11 @@ One module plus a registry entry. Nothing else changes.
 
 1. Create `src/burnometer/adapters/<provider>.py` implementing the `Adapter`
    protocol from `adapters/base.py`.
-2. Register it, and add it to the import in `base.get_adapters()`.
+2. Call `register(YourAdapter())` at the bottom of the module, then add the module
+   to the `from . import ...` line in `adapters/__init__.py` — that import is what
+   runs the registration. Register an **instance**, not the class: `@register` on
+   the class registers the class object, which passes a test run in isolation and
+   fails once another module imports the registry.
 3. Normalise tokens to the invariants on `TokenCounts` — uncached input only,
    reasoning as a display-only subset of output, cache writes split by TTL.
    Providers disagree about all three, and getting it wrong is the single most

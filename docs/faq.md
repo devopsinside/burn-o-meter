@@ -29,9 +29,17 @@ disk. Coding CLIs do; chat GUIs do not.
 
 ### Can it measure local models?
 
-Yes, through OpenCode. Ollama and the others report token counts per request and
-then discard them — nothing is written to disk, and there is no history endpoint to
-ask — so a local model is measurable only through a harness that records it.
+Yes, through OpenCode or Kimi Code. Ollama and the others report token counts per
+request and then discard them — nothing is written to disk, and there is no history
+endpoint to ask — so a local model is measurable only through a harness that records
+it.
+
+One thing to know before comparing the numbers to what you typed: Ollama truncates a
+prompt larger than `num_ctx` and reports the tokens it actually *processed*. Around
+8,000 tokens against the default 4,096-token window are reported as 2,050. The figure
+is honest — it is what the model read — but the overflow was silently dropped, and no
+agent can report what its provider never told it. Raise `num_ctx` if you need the
+whole prompt to reach the model.
 
 ```bash
 brew install ollama && brew services start ollama
@@ -74,7 +82,7 @@ every price came from — without printing anything from your conversations.
 | Symptom | Likely cause and fix |
 | --- | --- |
 | `command not found` | The install did not put it on PATH. A virtualenv only does that while activated — see [installing](install.md#the-cli). |
-| `no agent logs found` | Logs are somewhere non-default. Set `CLAUDE_CONFIG_DIR` or `CODEX_HOME` and re-run `doctor`. |
+| `no agent logs found` | Logs are somewhere non-default. Set `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `OPENCODE_DATA` or `KIMI_CODE_HOME` and re-run `doctor` — it names the variable for whichever provider is missing. |
 | Numbers look frozen | Nothing is scanning in the background. `burn-o-meter agent status`, then `agent install` if it is not loaded. |
 | Menu bar shows `—` | No data scanned yet. Run `burn-o-meter scan`. |
 | Menu bar icon missing after a reboot | Almost always this: nothing is starting the app. macOS only registers a login item for an app in `/Applications`, so one built in place never comes back. Fix both at once with `macos/make-app.sh --install`, then `/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --enable-login-item`. |

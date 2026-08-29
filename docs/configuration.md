@@ -29,6 +29,7 @@ project_paths = "basename"
 claude_code = "auto"
 codex = "auto"
 opencode = "auto"
+kimi = "auto"
 
 [retention]
 # Quota readings are sampled continuously — Claude's desktop app writes one
