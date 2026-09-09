@@ -123,10 +123,27 @@ struct Quota: Identifiable {
     let resetsAt: Date?
     let planType: String?
     let isExact: Bool
-    /// How old the reading is. Claude's figures are only written while the
-    /// desktop app runs, so one can be hours stale — and a stale percentage
-    /// presented as current is worse than none.
-    let ageSeconds: Int?
+    /// When the provider recorded the reading.
+    ///
+    /// Age is derived from this against the current clock rather than read from
+    /// the payload, because the payload's own `age_seconds` is computed once, when
+    /// the snapshot is written, and then never changes. If nothing rewrites the
+    /// snapshot the app keeps seeing that frozen number, so a reading that is
+    /// hours old still reports as current and its percentage is shown as if it
+    /// were true now — which is how the menu bar came to sit at a stale figure
+    /// after real usage had moved on.
+    let observedAt: Date?
+    /// The age the writer computed. Only a fallback, for a payload with no
+    /// `observed_at`; anything else must prefer ``ageSeconds``.
+    let reportedAgeSeconds: Int?
+
+    /// How old the reading is *now*.
+    var ageSeconds: Int? {
+        if let observedAt {
+            return max(0, Int(Date().timeIntervalSince(observedAt).rounded()))
+        }
+        return reportedAgeSeconds
+    }
 
     var id: String { "\(provider)/\(window)" }
 

@@ -8,6 +8,40 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Fixed
+
+- **The menu bar only updated when you clicked it.** The poll timer re-read the
+  payload every two seconds but nothing regenerated it: the only code path that
+  scans ran on launch, on opening the popover, and from *Scan now*. The design
+  assumed the background agent kept the file current, and that agent is optional
+  and off by default — so on most machines the number moved only when looked at.
+  The timer now scans for itself whenever the payload is older than a minute,
+  which is skipped entirely when the agent *is* running, so the two never
+  duplicate work. Verified by watching the payload regenerate on a 60-second
+  cadence with the popover never opened.
+- **A stale quota reading was presented as current, so the percentage could sit
+  at an old value after usage had moved on** — reported as being stuck at 85%
+  after the limit was actually reached. A reading's age came from the payload's
+  own `age_seconds`, which the writer computes once and never revises, so with
+  nothing rewriting the payload that number stayed frozen: a four-hour-old
+  reading still classified as `current`, kept leading the menu bar, and kept
+  showing its percentage as a statement about now. Age is now derived from
+  `observed_at` against the clock, so it grows, and a reading that ages out is
+  drawn back instead of being trusted. The "as of X ago" labels and the stale
+  banner were reading the same frozen number and are fixed by the same change.
+- `--check-freshness` joins `--check-layout` as a CI self-check on the app
+  binary. It asserts the classification boundaries, that a stale reading never
+  reaches the menu bar, that 100% does, and that a payload without `observed_at`
+  still falls back cleanly. Reintroducing either bug fails it.
+
+### Changed
+
+- The FAQ's "numbers look frozen" row documented the first bug as expected
+  behaviour and told users to install the background agent to work around it. It
+  now says that only applies to the CLI.
+
 ## [0.6.0] — 2026-08-29
 
 ### Added

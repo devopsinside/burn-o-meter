@@ -90,7 +90,8 @@ enum LayoutCheck {
         sample.quotas = [Quota(
             provider: "claude", window: "five_hour", usedPercent: 100,
             windowMinutes: 300, resetsAt: Date(), planType: "max20",
-            isExact: true, ageSeconds: 60
+            isExact: true, observedAt: Date().addingTimeInterval(-60),
+            reportedAgeSeconds: 60
         )]
         var widths: [MenuBarStyle: CGFloat] = [:]
         for style in MenuBarStyle.allCases {
@@ -162,12 +163,22 @@ enum LayoutCheck {
             )
         }
         s.quotas = (0..<quotas).map { i in
-            Quota(
-                provider: i.isMultiple(of: 2) ? "claude" : "codex",
-                window: "window_\(i)", usedPercent: Double(i * 13 % 100),
-                windowMinutes: [300, 10080, 43200][i % 3],
-                resetsAt: Date().addingTimeInterval(3600), planType: "max20",
-                isExact: i.isMultiple(of: 2), ageSeconds: 60 * i
+            // Each value bound to a local first: inlined, the type-checker gives up
+            // on this initialiser ("unable to type-check in reasonable time").
+            let isClaude: Bool = i.isMultiple(of: 2)
+            let percent: Double = Double((i * 13) % 100)
+            let minutes: Int = [300, 10080, 43200][i % 3]
+            let observed: Date = Date().addingTimeInterval(-Double(60 * i))
+            return Quota(
+                provider: isClaude ? "claude" : "codex",
+                window: "window_\(i)",
+                usedPercent: percent,
+                windowMinutes: minutes,
+                resetsAt: Date().addingTimeInterval(3600),
+                planType: "max20",
+                isExact: isClaude,
+                observedAt: observed,
+                reportedAgeSeconds: 60 * i
             )
         }
         s.currentWindow = UsageWindow(

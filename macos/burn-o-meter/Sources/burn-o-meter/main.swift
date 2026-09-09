@@ -26,9 +26,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// highlight state the system draws while it is open.
     private lazy var optionsMenu = makeOptionsMenu()
 
-    /// Polling a small local JSON file. Cheap enough to feel live; the freshness
-    /// of the *data* is set by the scan interval, not by this.
+    /// Polling a small local JSON file. Cheap enough to feel live, and it picks up
+    /// a background agent's writes the moment they land.
     private let pollInterval: TimeInterval = 2
+
+    /// How stale the payload may get before the app scans for itself.
+    ///
+    /// Re-reading the file was the only thing on the timer, which assumed something
+    /// else keeps it current. The background agent is optional and off by default,
+    /// so on most machines nothing did: the menu bar then only changed when the
+    /// popover was opened, because that is the one path that scans. A meter that
+    /// updates when you look at it is not a meter.
+    ///
+    /// A scan is 15-250ms against a warm database, so a minute is generous. It is
+    /// skipped whenever the payload is already fresher than this, which is exactly
+    /// the case when the agent *is* running - so the two never duplicate work.
+    private let scanInterval: TimeInterval = 60
+
+    /// Guards against a second scan starting while one is still running: the timer
+    /// keeps firing regardless of how long a scan takes.
+    private var isScanning = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -69,7 +86,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
-            self?.reload()
+            self?.tick()
+        }
+    }
+
+    /// One poll: always re-read, and scan too if nothing else is keeping the
+    /// payload current.
+    private func tick() {
+        reload()
+        guard !isScanning, !model.isRefreshing else { return }
+        let age = model.snapshot.generatedAt.map { Date().timeIntervalSince($0) }
+        // No timestamp at all means nothing has been written yet, which is also a
+        // reason to scan.
+        if age ?? .infinity >= scanInterval { scanInBackground() }
+    }
+
+    /// A scan the user did not ask for. Deliberately does not set
+    /// `isRefreshing`: that drives the popover's spinner, and a spinner appearing
+    /// on its own every minute reads as the app doing something to your data.
+    private func scanInBackground() {
+        isScanning = true
+        Engine.scan { [weak self] _ in
+            guard let self else { return }
+            self.isScanning = false
+            self.reload()
         }
     }
 
@@ -100,9 +140,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// background agent last happened to fire.
     private func refresh() {
         model.isRefreshing = true
+        isScanning = true
         Engine.scan { [weak self] _ in
             guard let self else { return }
             self.model.isRefreshing = false
+            self.isScanning = false
             self.reload()
         }
     }
@@ -435,6 +477,11 @@ if CommandLine.arguments.contains("--enable-login-item")
 // Layout regression check, run by CI. See LayoutCheck for why it exists.
 if CommandLine.arguments.contains("--check-layout") {
     LayoutCheck.run()
+}
+
+// Quota freshness check, run by CI. See FreshnessCheck for why it exists.
+if CommandLine.arguments.contains("--check-freshness") {
+    FreshnessCheck.run()
 }
 
 let probingPopover = CommandLine.arguments.contains("--probe-popover")
