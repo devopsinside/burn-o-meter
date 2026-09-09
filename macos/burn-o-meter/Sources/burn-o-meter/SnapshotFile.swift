@@ -106,7 +106,8 @@ enum SnapshotFile {
                 resetsAt: ($0["resets_at"] as? String).flatMap(parseDate),
                 planType: $0["plan_type"] as? String,
                 isExact: $0["exact"] as? Bool ?? false,
-                ageSeconds: $0["age_seconds"] as? Int
+                observedAt: ($0["observed_at"] as? String).flatMap(parseDate),
+                reportedAgeSeconds: $0["age_seconds"] as? Int
             )
         }
         .sorted { $0.priority < $1.priority }

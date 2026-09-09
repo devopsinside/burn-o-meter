@@ -83,7 +83,7 @@ every price came from — without printing anything from your conversations.
 | --- | --- |
 | `command not found` | The install did not put it on PATH. A virtualenv only does that while activated — see [installing](install.md#the-cli). |
 | `no agent logs found` | Logs are somewhere non-default. Set `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `OPENCODE_DATA` or `KIMI_CODE_HOME` and re-run `doctor` — it names the variable for whichever provider is missing. |
-| Numbers look frozen | Nothing is scanning in the background. `burn-o-meter agent status`, then `agent install` if it is not loaded. |
+| CLI numbers look frozen | Nothing is scanning in the background. `burn-o-meter agent status`, then `agent install` if it is not loaded. The menu bar app does not need this — it scans for itself every minute. |
 | Menu bar shows `—` | No data scanned yet. Run `burn-o-meter scan`. |
 | Menu bar icon missing after a reboot | Almost always this: nothing is starting the app. macOS only registers a login item for an app in `/Applications`, so one built in place never comes back. Fix both at once with `macos/make-app.sh --install`, then `/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --enable-login-item`. |
 | Menu bar icon missing, and the app *is* running | Now it is the menu bar being full — macOS drops items that no longer fit without warning, and a notched laptop has less room than it looks. Gear menu → **Menu Bar Shows** → *Icon Only* makes it as small as it gets; ⌘-drag other items to reorder or remove them. |
