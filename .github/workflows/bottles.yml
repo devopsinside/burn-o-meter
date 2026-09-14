@@ -43,11 +43,17 @@ jobs:
             label: arm64_sonoma (macOS 14)
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Resolve the tag being bottled
         id: tag
-        run: echo "tag=${{ github.event.release.tag_name || inputs.tag }}" >> "$GITHUB_OUTPUT"
+        # Through env, never spliced into the script. `${{ }}` is substituted
+        # before the shell sees the text at all, so a crafted tag name would run
+        # as code on a runner holding this repository's token.
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: echo "tag=${RELEASE_TAG:-$INPUT_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Tap this checkout
         # Tapping the workspace bottles the formula as it exists in THIS commit,
@@ -64,9 +70,12 @@ jobs:
           burn-o-meter doctor >/dev/null
 
       - name: Bottle
+        env:
+          REPOSITORY: ${{ github.repository }}
+          RESOLVED_TAG: ${{ steps.tag.outputs.tag }}
         run: |
           brew bottle --json --no-rebuild \
-            --root-url="https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}" \
+            --root-url="https://github.com/${REPOSITORY}/releases/download/${RESOLVED_TAG}" \
             devopsinside/burn-o-meter/burn-o-meter
           # brew writes `name--version.tag.bottle.tar.gz` but serves it as
           # `name-version...`; the JSON carries both names, so rename from that
@@ -79,7 +88,7 @@ jobs:
           done
           ls -la *.bottle.tar.gz *.json
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: bottle-${{ matrix.runner }}
           path: |
@@ -92,9 +101,9 @@ jobs:
     needs: build
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6
         with:
           pattern: bottle-*
           merge-multiple: true
@@ -106,6 +115,10 @@ jobs:
         # workflow that uploads afterwards cannot work, and retrying burns the
         # version number. The bottles are published as workflow artifacts instead,
         # and `scripts/release.sh` attaches them while creating the release.
+        env:
+          REPOSITORY: ${{ github.repository }}
+          RESOLVED_TAG: ${{ steps.tag.outputs.tag }}
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           {
             echo "### Bottles built"
@@ -115,7 +128,7 @@ jobs:
             echo
             echo '```ruby'
             echo '  bottle do'
-            echo "    root_url \"https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag || inputs.tag }}\""
+            echo "    root_url \"https://github.com/${REPOSITORY}/releases/download/${RESOLVED_TAG:-$INPUT_TAG}\""
             for f in *.bottle.tar.gz; do
               tag=$(echo "$f" | sed -E 's/.*\.(arm64_[a-z]+)\.bottle\.tar\.gz/\1/')
               sum=$(shasum -a 256 "$f" | cut -d' ' -f1)

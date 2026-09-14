@@ -24,9 +24,9 @@ jobs:
     # check that trains everyone to ignore failures.
     if: github.event.repository.private == false
     steps:
-      - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: github/codeql-action/init@faaca9a8f6edddba5725ffe5adefdab6669a2eca  # v3
         with:
           languages: python
           queries: security-and-quality
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@faaca9a8f6edddba5725ffe5adefdab6669a2eca  # v3
