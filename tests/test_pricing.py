@@ -215,16 +215,35 @@ def test_undetectable_billing_defaults_to_equivalent() -> None:
 # -- refresh (no real network: urlopen is stubbed) -------------------------
 
 
+def plausible(models: dict | None = None, vendor: str = "anthropic") -> dict:
+    """An upstream payload big enough for `refresh_snapshot` to accept.
+
+    It refuses a result below `_MIN_PLAUSIBLE_MODELS`, because persisting a short
+    one is how every model on a real machine silently lost its price. Tests that
+    care about *shape* still have to clear that floor, so the models they assert on
+    are padded with filler rather than the floor being made tunable — a knob for
+    lowering it in tests is a knob for lowering it in production.
+    """
+    from burnometer.pricing.catalog import _MIN_PLAUSIBLE_MODELS
+
+    out = dict(models or {})
+    filler = {
+        f"filler-{i}": {"cost": {"input": 1.0, "output": 1.0}} for i in range(_MIN_PLAUSIBLE_MODELS)
+    }
+    return {vendor: {"models": {**filler, **out}}}
+
+
 def test_refresh_normalises_upstream_shape(tmp_path: Path, monkeypatch) -> None:
     """Storing our own schema means an upstream format change breaks this one
     function loudly, instead of silently mispricing everything."""
     payload = {
         "anthropic": {
             "models": {
+                **plausible()["anthropic"]["models"],
                 "claude-x": {
                     "cost": {"input": 3.0, "output": 15.0, "cache_read": 0.3, "cache_write": 3.75},
                     "limit": {"context": 200000},
-                }
+                },
             }
         },
         "openai": {
@@ -297,7 +316,7 @@ def test_a_refreshed_snapshot_takes_precedence(burn_home, monkeypatch) -> None:
         user_snapshot_path,
     )
 
-    payload = {"anthropic": {"models": {"claude-test": {"cost": {"input": 9.0, "output": 9.0}}}}}
+    payload = plausible({"claude-test": {"cost": {"input": 9.0, "output": 9.0}}})
 
     class FakeResponse:
         def read(self):
@@ -327,7 +346,7 @@ def test_refreshed_snapshot_is_owner_only(burn_home, monkeypatch) -> None:
 
     class FakeResponse:
         def read(self):
-            return _json.dumps({"anthropic": {"models": {}}}).encode()
+            return _json.dumps(plausible()).encode()
 
         def __enter__(self):
             return self
@@ -529,3 +548,214 @@ def test_the_documented_model_count_matches_what_ships() -> None:
             assert int(claimed) == shipped, (
                 f"{name} claims {claimed} models; the packaged snapshot has {shipped}"
             )
+
+
+def _fake_upstream(monkeypatch, payload: dict) -> None:
+    import json as _json
+    import urllib.request
+
+    class FakeResponse:
+        def read(self):
+            return _json.dumps(payload).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse())
+
+
+def test_a_refresh_that_returns_nothing_is_refused_not_saved(burn_home, monkeypatch) -> None:
+    """This happened, on a real machine, and nothing said so.
+
+    A refresh met a bad response and wrote a snapshot with zero models. A refreshed
+    snapshot shadows the packaged one, so every model on that machine became
+    unpriced — the user's main model rendered as "—" with no error anywhere, and
+    the only symptom was a cost that had quietly stopped existing.
+    """
+    from burnometer.pricing.catalog import refresh_snapshot, user_snapshot_path
+
+    _fake_upstream(monkeypatch, {"anthropic": {"models": {}}})
+    with pytest.raises(ValueError, match="refusing to save"):
+        refresh_snapshot()
+    assert not user_snapshot_path().exists(), "an empty refresh must leave no file"
+
+
+def test_a_failed_refresh_leaves_the_previous_snapshot_intact(burn_home, monkeypatch) -> None:
+    """Failing is only better than persisting if the good file survives."""
+    from burnometer.pricing.catalog import refresh_snapshot, user_snapshot_path
+
+    _fake_upstream(
+        monkeypatch, plausible({"claude-good": {"cost": {"input": 3.0, "output": 15.0}}})
+    )
+    refresh_snapshot()
+    before = user_snapshot_path().read_bytes()
+
+    _fake_upstream(monkeypatch, {"anthropic": {"models": {}}})
+    with pytest.raises(ValueError):
+        refresh_snapshot()
+
+    assert user_snapshot_path().read_bytes() == before, "a bad refresh overwrote a good one"
+
+
+def test_an_already_written_empty_snapshot_does_not_shadow_the_packaged_one(
+    burn_home, monkeypatch
+) -> None:
+    """The other half: refusing to write only helps machines without one already.
+
+    A user who refreshed before the guard existed still has the bad file, so
+    precedence has to be earned on every read rather than granted by existence.
+    """
+    import json as _json
+
+    from burnometer.pricing.catalog import (
+        _PACKAGED_SNAPSHOT,
+        active_snapshot_path,
+        user_snapshot_path,
+    )
+
+    path = user_snapshot_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_json.dumps({"generated_at": "2026-09-14T22:00:43+00:00", "models": {}}))
+
+    assert active_snapshot_path() == _PACKAGED_SNAPSHOT
+    assert load_catalog().get("claude-opus-5") is not None, (
+        "an empty refreshed snapshot must not unprice everything"
+    )
+
+
+@pytest.mark.parametrize(
+    "content",
+    ["", "not json at all", "[]", '{"models": null}', '{"no_models_key": 1}'],
+    ids=["empty", "not-json", "wrong-type", "null-models", "missing-key"],
+)
+def test_an_unreadable_snapshot_falls_back_rather_than_raising(burn_home, content: str) -> None:
+    """A truncated write or a half-finished download must not break every command."""
+    from burnometer.pricing.catalog import (
+        _PACKAGED_SNAPSHOT,
+        active_snapshot_path,
+        user_snapshot_path,
+    )
+
+    path = user_snapshot_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+
+    assert active_snapshot_path() == _PACKAGED_SNAPSHOT
+    assert len(load_catalog().prices) > 200
+
+
+def test_a_healthy_refreshed_snapshot_still_wins(burn_home, monkeypatch) -> None:
+    """The guard must not be so eager it ignores a legitimate refresh."""
+    from burnometer.pricing.catalog import (
+        active_snapshot_path,
+        refresh_snapshot,
+        user_snapshot_path,
+    )
+
+    _fake_upstream(
+        monkeypatch, plausible({"claude-fresh": {"cost": {"input": 1.0, "output": 2.0}}})
+    )
+    refresh_snapshot()
+
+    assert active_snapshot_path() == user_snapshot_path()
+    assert load_catalog(user_path=Path("/nonexistent")).get("claude-fresh") is not None
+
+
+def test_repricing_preserves_not_metered_for_locally_served_events(burn_home) -> None:
+    """A reprice must not turn "there is no rate" into "we do not know the rate".
+
+    `reprice` made the pricing decision itself rather than calling the function the
+    scan path calls, so it never learned about `not_metered`. One
+    `burn-o-meter reprice` relabelled every locally-served event `unpriced` — a
+    different and wrong claim, and invisible, because both render as an em dash.
+
+    Found on a real machine, not by a test, which is why this one exists.
+    """
+    from datetime import UTC, datetime
+
+    from burnometer.models import CostBasis, TokenCounts, UsageEvent
+    from burnometer.scan import reprice
+    from burnometer.store import Store
+
+    event = UsageEvent(
+        event_key="local:1",
+        provider="kimi",
+        model="qwen3:0.6b",
+        upstream_provider="ollama",
+        effort=None,
+        ts=datetime.now(tz=UTC),
+        tokens=TokenCounts(input=100, output=50),
+        session_id="s",
+        project=None,
+        raw_file=None,
+        raw_line=0,
+    )
+
+    with Store.open(burn_home / "burn.db") as store:
+        store.upsert_events([price_event(event, load_catalog())])
+        assert _basis_of(store, "local:1") == CostBasis.NOT_METERED.value
+
+        updated, _ = reprice(store)
+        assert updated >= 1
+        assert _basis_of(store, "local:1") == CostBasis.NOT_METERED.value, (
+            "repricing downgraded a locally-served event to unpriced"
+        )
+
+
+def _basis_of(store, key: str) -> str:
+    row = store._conn.execute(
+        "SELECT cost_basis FROM usage_events WHERE event_key = ?", (key,)
+    ).fetchone()
+    return row["cost_basis"]
+
+
+def test_repricing_and_scanning_agree_on_every_stored_event(burn_home) -> None:
+    """The two paths must reach the same verdict, for every shape we store.
+
+    Asserted as a property rather than case by case: they diverged once and the
+    only symptom was a dash that meant something subtly different.
+    """
+    from datetime import UTC, datetime
+
+    from burnometer.models import TokenCounts, UsageEvent
+    from burnometer.scan import reprice
+    from burnometer.store import Store
+
+    catalog = load_catalog()
+    cases = [
+        ("claude_code", "claude-opus-5", None),  # priced
+        ("kimi", "qwen3:0.6b", "ollama"),  # local -> not_metered
+        ("kimi", "qwen3:0.6b", "lmstudio"),  # local -> not_metered
+        ("opencode", "no-such-model-anywhere", None),  # unpriced
+        ("codex", "gpt-5.5", "openai"),  # priced, remote upstream
+    ]
+    events = [
+        price_event(
+            UsageEvent(
+                event_key=f"k{i}",
+                provider=prov,
+                model=model,
+                upstream_provider=up,
+                effort=None,
+                ts=datetime.now(tz=UTC),
+                tokens=TokenCounts(input=100, output=50),
+                session_id="s",
+                project=None,
+                raw_file=None,
+                raw_line=0,
+            ),
+            catalog,
+        )
+        for i, (prov, model, up) in enumerate(cases)
+    ]
+    at_scan = {e.event_key: e.cost_basis.value for e in events}
+
+    with Store.open(burn_home / "burn.db") as store:
+        store.upsert_events(events)
+        reprice(store)
+        after = {k: _basis_of(store, k) for k in at_scan}
+
+    assert after == at_scan, f"reprice disagreed with scan: {after} != {at_scan}"

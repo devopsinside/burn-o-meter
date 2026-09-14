@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from ..config import burn_home
-from ..safety import harden_path, secure_dir, secure_open_write
+from ..safety import harden_path, redact, secure_dir, secure_open_write
 
 __all__ = [
     "Price",
@@ -45,6 +45,17 @@ __all__ = [
 ]
 
 MODELS_DEV_URL = "https://models.dev/api.json"
+
+#: The only host this project may contact, checked at the point of the call rather
+#: than trusted from the default argument. See G3 in SECURITY.md.
+_EGRESS_HOST = "models.dev"
+
+#: Below this, a refresh is treated as failed rather than as news. models.dev has
+#: carried hundreds of models for as long as this project has read it, and the
+#: vendor filter keeps ~290 of them; a result in single or double digits means the
+#: response was bad. Only a floor - the count is never assumed to be any particular
+#: number above it.
+_MIN_PLAUSIBLE_MODELS = 50
 
 #: The snapshot that ships inside the wheel. Read-only in practice: a pipx or uv
 #: install lives somewhere the user cannot write, so a refresh must not target it.
@@ -64,9 +75,33 @@ def user_snapshot_path() -> Path:
 
 
 def active_snapshot_path() -> Path:
-    """The snapshot in force: a refreshed one if present, else the packaged one."""
+    """The snapshot in force: a refreshed one if usable, else the packaged one.
+
+    "Usable" rather than "present", because a refreshed file shadows the packaged
+    one completely — so an empty or unreadable refresh does not degrade pricing, it
+    removes it. One was written with zero models by a refresh that met a bad
+    response, and every model on that machine silently became unpriced.
+
+    ``refresh_snapshot`` now refuses to write such a file, but that only helps
+    machines that have not already got one. This is the other half: a refreshed
+    snapshot has to earn its precedence on every read.
+    """
     refreshed = user_snapshot_path()
-    return refreshed if refreshed.exists() else _PACKAGED_SNAPSHOT
+    if not refreshed.exists():
+        return _PACKAGED_SNAPSHOT
+    try:
+        parsed = json.loads(refreshed.read_text())
+    except (OSError, ValueError):
+        return _PACKAGED_SNAPSHOT
+    # Any shape but the one we write is a corrupt or half-finished file, and must
+    # fall back rather than raise: this runs on the path of every command, so a
+    # truncated download would otherwise break `today` as well as pricing.
+    if not isinstance(parsed, dict):
+        return _PACKAGED_SNAPSHOT
+    models = parsed.get("models")
+    if not isinstance(models, dict) or len(models) < _MIN_PLAUSIBLE_MODELS:
+        return _PACKAGED_SNAPSHOT
+    return refreshed
 
 
 #: Providers kept when vendoring the snapshot.
@@ -341,10 +376,35 @@ def refresh_snapshot(
     verbatim, so an upstream format change breaks this one function instead of
     silently mispricing everything downstream.
     """
-    import urllib.request  # imported lazily: no socket code loads unless asked
+    # Imported lazily: no socket code loads unless asked. Both submodules are
+    # named explicitly - `import urllib.request` alone binds a local `urllib`,
+    # and `urllib.parse` would then resolve only if something else had already
+    # imported it.
+    import urllib.parse
+    import urllib.request
+
+    # Enforced, not assumed. `url` is a parameter, and urllib will happily open
+    # `file://`, `ftp://` or `data:` — so without this check the one function
+    # allowed to touch the network doubles as an arbitrary-file reader, and
+    # SECURITY.md's "one opt-in egress" would be a claim about intent rather than
+    # a property of the code. Scheme and host are both pinned: https alone would
+    # still allow any site on the internet.
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https" or parsed.hostname != _EGRESS_HOST:
+        raise ValueError(
+            f"refusing to fetch pricing from {redact(url)}: the only permitted "
+            f"destination is https://{_EGRESS_HOST}"
+        )
 
     req = urllib.request.Request(url, headers={"User-Agent": "burn-o-meter"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 — https literal
+    # The scheme-and-host check above is what makes this safe, and it is enforced
+    # by tests rather than by this comment: see
+    # test_pricing_refresh_refuses_any_destination_but_models_dev in
+    # tests/test_security.py, which fails if the guard is removed. The rule here is
+    # syntactic and cannot see any of that.
+    #
+    # nosemgrep
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 — checked above
         payload = json.loads(resp.read().decode("utf-8"))
 
     models: dict[str, Any] = {}
@@ -396,6 +456,24 @@ def refresh_snapshot(
         ),
         "models": dict(sorted(models.items())),
     }
+
+    # Refuse to persist an implausible result, because persisting one is worse
+    # than failing. A refreshed snapshot takes precedence over the packaged one, so
+    # writing an empty payload silently unprices every model on the machine and
+    # keeps doing so until someone refreshes again. That happened: a snapshot
+    # written with zero models left the user's main model showing "—" with no error
+    # anywhere, and the only clue was a cost that had quietly stopped existing.
+    #
+    # The floor is deliberately generous. It is not a guess at the right number of
+    # models; it is a line below which the answer is certainly wrong - a truncated
+    # response, an error page parsed as JSON, or an upstream outage.
+    found = len(models)
+    if found < _MIN_PLAUSIBLE_MODELS:
+        raise ValueError(
+            f"refusing to save a pricing snapshot with only {found} model(s): "
+            f"fewer than {_MIN_PLAUSIBLE_MODELS} means the response was bad, not "
+            "that the world changed. The existing snapshot is left untouched."
+        )
 
     dest = dest or user_snapshot_path()
     secure_dir(dest.parent)

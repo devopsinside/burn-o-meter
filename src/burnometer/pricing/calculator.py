@@ -122,6 +122,55 @@ def resolve_basis(provider: str, *, subscription: bool | None) -> CostBasis:
     return CostBasis.API_EQUIVALENT
 
 
+def decide_cost(
+    *,
+    provider: str,
+    model: str,
+    tokens: TokenCounts,
+    upstream_provider: str | None,
+    catalog: Catalog,
+    subscription: bool | None = None,
+) -> tuple[float | None, CostBasis, str | None]:
+    """The whole pricing decision: ``(usd, basis, note)``.
+
+    Kept as one function because there are two callers - the scan path, through
+    :func:`price_event`, and ``reprice``, which recomputes stored costs. They used
+    to each make this decision for themselves, and drifted the moment
+    ``not_metered`` arrived: the scan path learned it, ``reprice`` did not, so a
+    single ``burn-o-meter reprice`` silently relabelled every local-model event as
+    ``unpriced``. That is a different and wrong claim - "we do not know the rate"
+    where the truth is "there is no rate" - and nothing reported it, because both
+    render as an em dash.
+    """
+    # Checked before the catalog: a local model has no entry and never will, so
+    # falling through to UNPRICED would report "we do not know the rate" when the
+    # truth is "there is no rate". Both show no dollar figure, but only one of them
+    # is honest, and only one tells the user their own hardware is not a bill.
+    if is_local_provider(upstream_provider):
+        return (
+            None,
+            CostBasis.NOT_METERED,
+            f"served locally by {upstream_provider} [no per-token rate exists]",
+        )
+
+    price = catalog.get(model)
+    if price is None:
+        return None, CostBasis.UNPRICED, f"no price for {model!r}"
+
+    if is_not_metered(price):
+        # A published rate of zero is not a price of zero. Providers use it for
+        # plan-included models, and local runtimes have no per-token rate at
+        # all. Either way no amount of money is the right answer.
+        return (
+            None,
+            CostBasis.NOT_METERED,
+            f"{price.source} [no per-token rate; usage covered by a plan or self-hosted]",
+        )
+
+    usd, note = compute_cost(tokens, price)
+    return usd, resolve_basis(provider, subscription=subscription), note
+
+
 def price_event(
     event: UsageEvent,
     catalog: Catalog,
@@ -129,33 +178,15 @@ def price_event(
     subscription: bool | None = None,
 ) -> UsageEvent:
     """Return a copy of ``event`` carrying a cost and its provenance."""
-    # Checked before the catalog: a local model has no entry and never will, so
-    # falling through to UNPRICED would report "we do not know the rate" when the
-    # truth is "there is no rate". Both show no dollar figure, but only one of them
-    # is honest, and only one tells the user their own hardware is not a bill.
-    if is_local_provider(event.upstream_provider):
-        return event.priced(
-            None,
-            CostBasis.NOT_METERED,
-            f"served locally by {event.upstream_provider} [no per-token rate exists]",
-        )
-
-    price = catalog.get(event.model)
-    if price is None:
-        return event.priced(None, CostBasis.UNPRICED, f"no price for {event.model!r}")
-
-    if is_not_metered(price):
-        # A published rate of zero is not a price of zero. Providers use it for
-        # plan-included models, and local runtimes have no per-token rate at
-        # all. Either way no amount of money is the right answer.
-        return event.priced(
-            None,
-            CostBasis.NOT_METERED,
-            f"{price.source} [no per-token rate; usage covered by a plan or self-hosted]",
-        )
-
-    usd, note = compute_cost(event.tokens, price)
-    return event.priced(usd, resolve_basis(event.provider, subscription=subscription), note)
+    usd, basis, note = decide_cost(
+        provider=event.provider,
+        model=event.model,
+        tokens=event.tokens,
+        upstream_provider=event.upstream_provider,
+        catalog=catalog,
+        subscription=subscription,
+    )
+    return event.priced(usd, basis, note)
 
 
 def price_events(
