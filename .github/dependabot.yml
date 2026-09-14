@@ -5,10 +5,19 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Wait a week before proposing a newly published version. Nearly every
+    # package-registry compromise is caught within days of the bad version going
+    # up, so the cost of a week's delay is small and the thing it avoids is
+    # merging a malicious release automatically, hours after it appears.
+    cooldown:
+      default-days: 7
 
-  # Pinning actions by tag still leaves supply-chain exposure; keeping them
-  # current is the mitigation we can actually automate.
+  # Actions are pinned to commit SHAs, which a tag cannot be repointed underneath
+  # - that is the actual mitigation. Dependabot's job here is to keep those pins
+  # from going stale, proposing a new SHA with the version in the commit message.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7

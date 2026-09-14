@@ -139,10 +139,16 @@ class Store:
             conn.execute("PRAGMA synchronous = NORMAL")
             _migrate(conn)
             conn.executescript(_SCHEMA_PATH.read_text())
-            # sql-audited: PRAGMA cannot take a bound parameter; the value is
-            # our own int constant, asserted below, never user input.
-            assert isinstance(SCHEMA_VERSION, int)
-            conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")  # sql-audited
+            # PRAGMA cannot take a bound parameter - `PRAGMA user_version = ?` is a
+            # syntax error in SQLite - so this one statement has to be formatted.
+            # `int()` is what makes that safe, and it is deliberately not an
+            # `assert`: assertions are stripped under `python -O`, so the guarantee
+            # would disappear in exactly the builds least likely to be tested. The
+            # value is a module constant that never touches user input, and int()
+            # raises rather than interpolating anything that is not a number.
+            #
+            # nosemgrep
+            conn.execute(f"PRAGMA user_version = {int(SCHEMA_VERSION)}")  # sql-audited
             conn.commit()
             # WAL sidecars are created with the process umask; tighten all three.
             for suffix in ("", "-wal", "-shm"):
@@ -226,22 +232,27 @@ class Store:
             e.raw_line,
         )
 
-    def iter_priceable(self) -> Iterable[tuple[str, str, str, TokenCounts]]:
-        """Yield ``(event_key, provider, model, tokens)`` for every stored event.
+    def iter_priceable(self) -> Iterable[tuple[str, str, str, str | None, TokenCounts]]:
+        """Yield ``(event_key, provider, model, upstream_provider, tokens)``.
 
         Used by ``reprice``: stored costs are a cache of the best answer at scan
         time, not a permanent verdict. When rates change or the overlay gains a
         model, they must be recomputed rather than left stale.
+
+        ``upstream_provider`` is part of that and was once missing, which is how a
+        reprice came to relabel every local-model event ``unpriced``: without it
+        the recompute could not tell "no rate is published" from "no rate exists".
         """
         for row in self._conn.execute(
-            "SELECT event_key, provider, model, input_tokens, output_tokens, "
-            "reasoning_tokens, cache_read_tokens, cache_write_5m_tokens, "
-            "cache_write_1h_tokens FROM usage_events"
+            "SELECT event_key, provider, model, upstream_provider, input_tokens, "
+            "output_tokens, reasoning_tokens, cache_read_tokens, "
+            "cache_write_5m_tokens, cache_write_1h_tokens FROM usage_events"
         ):
             yield (
                 row["event_key"],
                 row["provider"],
                 row["model"],
+                row["upstream_provider"],
                 TokenCounts(
                     input=row["input_tokens"],
                     output=row["output_tokens"],
