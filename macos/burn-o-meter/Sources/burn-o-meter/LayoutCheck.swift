@@ -93,10 +93,21 @@ enum LayoutCheck {
             isExact: true, observedAt: Date().addingTimeInterval(-60),
             reportedAgeSeconds: 60
         )]
+        // The glyph is an image on the button now, not a character in the title, so
+        // it has to be added back or every style measures narrower than it renders.
+        //
+        // Measured, not derived: `--probe-menubar` reports a real 34pt button for
+        // the `.minimal` style, whose title is empty — so 34pt is the glyph plus
+        // whatever padding NSStatusBarButton adds around it. Computing it as
+        // `height + 4` gave 22pt and understated every style by 12pt, which is the
+        // dangerous direction for a check whose whole job is "does this still fit".
+        let glyph: CGFloat = 34
+
         var widths: [MenuBarStyle: CGFloat] = [:]
         for style in MenuBarStyle.allCases {
             let title = sample.menuBarTitle(style: style)
-            let w = (title as NSString).size(withAttributes: [.font: font]).width
+            let text = (title as NSString).size(withAttributes: [.font: font]).width
+            let w = glyph + text
             widths[style] = w
             print("  menu bar \(style.rawValue): \"\(title)\" \(Int(w))pt")
         }

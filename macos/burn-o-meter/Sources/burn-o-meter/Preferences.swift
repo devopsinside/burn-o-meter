@@ -11,9 +11,9 @@ import ServiceManagement
 ///
 /// The menu bar is shared, finite, and on a notched laptop much smaller than it
 /// looks — the notch splits it, and macOS silently drops whatever no longer fits
-/// rather than telling anyone. A title like "🔥 79% · ~$44.05" is 15 characters,
-/// which is a lot to claim from a space the user has other plans for, and the
-/// failure mode is the app appearing not to launch at all.
+/// rather than telling anyone. The glyph plus a title like "79% · ~$44.05" runs to
+/// well over 100pt, which is a lot to claim from a space the user has other plans
+/// for, and the failure mode is the app appearing not to launch at all.
 enum MenuBarStyle: String, CaseIterable {
     /// Both numbers, to the cent.
     case full

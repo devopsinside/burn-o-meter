@@ -138,7 +138,7 @@ meeting a Gatekeeper warning.
 git clone https://github.com/devopsinside/burn-o-meter
 cd burn-o-meter
 macos/make-app.sh --install             # builds, installs to /Applications
-open /Applications/burn-o-meter.app     # the 🔥 icon appears now
+open /Applications/burn-o-meter.app     # the meter glyph appears now
 
 # so it comes back by itself after a reboot
 /Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --enable-login-item

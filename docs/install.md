@@ -135,9 +135,9 @@ burn-o-meter has not, so a downloaded copy gets blocked on first open and you
 have to allow it under **System Settings → Privacy & Security**. The one-line
 build above skips all of that.
 
-Look for `🔥 23% · ~$60` near your clock. If you cannot see it, your menu bar is
-probably full — macOS silently hides status items when there is no room, which is
-common on MacBooks with a notch.
+Look for the meter glyph and a figure like `23% · ~$60` near your clock. If you
+cannot see it, your menu bar is probably full — macOS silently hides status items
+when there is no room, which is common on MacBooks with a notch.
 
 **Left-click** opens the popover. **Right-click** (or the gear button inside)
 opens options: launch at login, background-scanning status, scan now, reveal the
