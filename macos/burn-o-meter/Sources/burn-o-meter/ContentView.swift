@@ -250,9 +250,12 @@ struct ContentView: View {
                     ForEach(group.quotas) { quota in
                         quotaRow(quota)
                     }
-                    // Explain the lag once per provider, not once per row.
-                    if group.quotas.contains(where: { $0.isPeriodicallySampled
-                                                      && $0.freshness != .current }) {
+                    // Explain the lag once per provider, not once per row - and whenever
+                    // the provider samples periodically, not only once the reading has
+                    // aged. The caveat is a permanent property of the source, and hiding
+                    // it while the number still looks fresh hides it exactly when someone
+                    // is comparing the two side by side and wondering which is wrong.
+                    if group.quotas.contains(where: { $0.isPeriodicallySampled }) {
                         Text("Claude records these about every 15 minutes, so this can "
                              + "sit behind what the Claude app shows live.")
                             .font(Theme.micro).foregroundStyle(.tertiary)
@@ -341,6 +344,15 @@ struct ContentView: View {
                     Text("· as of \(Format.duration(TimeInterval(quota.ageSeconds ?? 0))) ago")
                 case .current:
                     Text(state.label).foregroundStyle(state.color)
+                    // Age shown even when current, for a source that only writes
+                    // periodically. "Current" here means "within one sampling
+                    // interval", not "live" - so a reading can be minutes old, differ
+                    // from what the Claude app shows, and give the reader nothing to
+                    // explain it with.
+                    if quota.isPeriodicallySampled, let age = quota.ageSeconds, age >= 60 {
+                        Text("· as of \(Format.duration(TimeInterval(age))) ago")
+                            .foregroundStyle(.tertiary)
+                    }
                 }
                 if let plan = quota.planLabel { Text("· \(plan)") }
                 Spacer()

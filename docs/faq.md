@@ -89,7 +89,7 @@ every price came from — without printing anything from your conversations.
 | Menu bar icon missing, and the app *is* running | Now it is the menu bar being full — macOS drops items that no longer fit without warning, and a notched laptop has less room than it looks. Gear menu → **Menu Bar Shows** → *Icon Only* makes it as small as it gets; ⌘-drag other items to reorder or remove them. |
 | Not sure which of those it is | `pgrep -f burn-o-meter.app` — no output means the app is not running, so it is the first row. |
 | A model shows `—` for cost | Genuinely unpriced. `doctor` lists these; burn-o-meter will not invent a rate or fall back to `$0.00`. |
-| Menu bar % differs from the Claude app | The desktop app writes that figure periodically, so it can lag by minutes. The popover shows the reading's age. |
+| Menu bar % differs from the Claude app | Both are right, at different moments. The Claude app asks Anthropic directly — its **Refresh** button fetches live — while burn-o-meter reads the figures that app writes to disk, about every 15 minutes. So ours is the newest *sample*; theirs is *now*. The popover shows each reading's age and says so under the rate-limit rows. |
 | Popover looks cut off | Run `--probe-popover` (below). It prints the size the popover actually became, the height its content needs, and the ceiling for your display — please include that in a report. |
 
 Two commands worth knowing:

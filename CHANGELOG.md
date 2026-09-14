@@ -32,6 +32,15 @@ without provenance is the thing this project exists to avoid.
   both callers use; the duplication was what let them drift.
 - The menu bar's `·` between percentage and spend read as a stray full stop at
   that size. Replaced with a wider gap, which is also narrower than `" · "` was.
+- **The rate-limit rows hid the one thing needed to read them.** A quota's age was
+  shown only once the reading had aged past its sampling interval, and the note
+  explaining that Claude records these about every 15 minutes was suppressed on
+  exactly the same condition. So when the figure looked fresh — which is when
+  someone is most likely to be comparing it against the Claude app — the popover
+  said "healthy" and offered nothing to explain a one-point difference. The age now
+  shows for a periodically-sampled source whenever it is a minute or more old, and
+  the note shows whenever such a source is present, because the caveat is a
+  property of the source rather than an occasional condition.
 
 ### Changed
 
