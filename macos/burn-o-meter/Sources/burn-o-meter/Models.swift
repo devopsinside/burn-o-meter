@@ -324,7 +324,12 @@ struct Snapshot {
             guard let spend else { return pct }
             switch style {
             case .full:
-                return onSubscription ? "\(pct) · \(spend)" : "\(spend) · \(pct)"
+                // Two spaces, not an interpunct. A "·" between the two figures
+                // reads as a stray full stop at menu bar size, especially now that
+                // a glyph sits to the left of it - and the % and $ already say
+                // which number is which, so the separator was carrying no meaning
+                // the sigils did not. The wider gap is also narrower than " · ".
+                return onSubscription ? "\(pct)  \(spend)" : "\(spend)  \(pct)"
             case .compact:
                 // Cents in a menu bar are noise: nobody acts on the difference
                 // between $47.97 and $48, and the two characters cost real width.

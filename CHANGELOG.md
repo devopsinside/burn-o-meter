@@ -8,6 +8,54 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Fixed
+
+- **A pricing refresh that returned nothing was saved, silently unpricing every
+  model.** A refreshed snapshot shadows the packaged one completely, so a file
+  written with zero models left the machine unable to price anything — the model
+  carrying 97% of one user's spend rendered as an em dash, with no error anywhere
+  and no symptom but a cost that had stopped existing. Upstream was healthy when
+  checked, so the bad response was transient and we persisted it. `refresh_snapshot`
+  now refuses a result below a plausibility floor and leaves the existing file
+  alone, and a refreshed snapshot has to *earn* its precedence on every read —
+  because refusing to write only helps machines that do not already have a bad
+  file. An empty, truncated or wrong-shaped file now falls back rather than
+  raising, since that check runs on the path of every command.
+- **`reprice` relabelled locally-served events as `unpriced`.** It made the pricing
+  decision itself instead of calling the function the scan path calls, and never
+  learned about `not_metered` — so one `burn-o-meter reprice` turned "there is no
+  rate, it ran on your own hardware" into "we do not know the rate". Invisible,
+  because both render as an em dash. `iter_priceable` did not even select
+  `upstream_provider`. The decision now lives in one function, `decide_cost`, that
+  both callers use; the duplication was what let them drift.
+- The menu bar's `·` between percentage and spend read as a stray full stop at
+  that size. Replaced with a wider gap, which is also narrower than `" · "` was.
+
+### Changed
+
+- **The status item shows the meter-and-flame glyph** from the app icon and the org
+  avatar, in place of the flame emoji. It is a template image, so macOS tints it for
+  the bar it lands in and inverts it while the item is clicked; the brand orange
+  stays with the app icon and popover, where there is a background to own it.
+  `--preview-menubar-icon` renders it at 1x/2x/3x on both a light and a dark bar,
+  because a template is only ever seen tinted.
+- **Every GitHub Action is pinned to a commit SHA.** A tag can be repointed by its
+  owner, which is how the trivy-action and kics-github-action compromises reached
+  their users. Versions already in use are unchanged — this pins, it does not
+  upgrade — and Dependabot keeps the pins current, now with a seven-day cooldown so
+  a freshly published release is not proposed within hours of appearing.
+- Workflow inputs reach shell scripts through `env` rather than `${{ }}`
+  interpolation, which is substituted before the shell sees the text at all.
+- **The pricing refresh pins both scheme and host.** SECURITY.md has always said
+  there is exactly one egress; it is now a property of the code rather than a
+  statement of intent, enforced by tests. Without it the one function allowed to
+  open a socket would also open `file:///etc/passwd`.
+- A test asserts the macOS app knows every cost basis the engine can write. It
+  decodes with `?? .unpriced`, so an unknown basis would not render as unknown — it
+  would claim "no published rate", which is a specific and wrong statement.
+
 ## [0.6.1] — 2026-09-10
 
 ### Fixed

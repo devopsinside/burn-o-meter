@@ -450,3 +450,34 @@ def test_every_relocation_variable_is_documented() -> None:
         assert env_var in docs, (
             f"{env_var} relocates an agent's data but appears in neither the README nor the FAQ"
         )
+
+
+def test_the_app_knows_every_cost_basis_the_engine_can_write() -> None:
+    """The two enums have to agree, and nothing made them.
+
+    `SnapshotFile` decodes with `CostBasis(rawValue:) ?? .unpriced`, so a basis the
+    app has not been taught does not render as unknown — it renders as "no
+    published rate for these models", which is a specific and wrong claim about
+    someone's money. `not_metered` was added to the engine precisely because
+    "unpriced" was the wrong thing to say.
+
+    Checked from the Python side because that is where the values originate and
+    where the test suite lives.
+    """
+    import re
+    from pathlib import Path
+
+    from burnometer.models import CostBasis
+
+    swift = (
+        Path(__file__).resolve().parent.parent
+        / "macos/burn-o-meter/Sources/burn-o-meter/Models.swift"
+    ).read_text()
+    known = set(re.findall(r'case \w+ = "([a-z_]+)"', swift))
+    engine = {b.value for b in CostBasis}
+
+    missing = engine - known
+    assert not missing, (
+        f"the macOS app has no case for {sorted(missing)}, so it would label "
+        "those events 'no published rate' — teach Models.swift about them"
+    )
