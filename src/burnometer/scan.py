@@ -24,7 +24,7 @@ from .adapters import Adapter, get_adapters
 from .config import Config, load_config
 from .models import CostBasis
 from .pricing import Catalog, load_catalog, price_events
-from .pricing.calculator import compute_cost, resolve_basis
+from .pricing.calculator import decide_cost
 from .safety import AdapterError, SecurityError, path_key, redact_path
 from .store import ScanState, Store
 
@@ -291,14 +291,21 @@ def reprice(
     updates: list[tuple[str, float | None, CostBasis, str | None]] = []
     unpriced = 0
 
-    for key, provider, model, tokens in store.iter_priceable():
-        price = cat.get(model)
-        if price is None:
+    # Through `decide_cost`, the same function the scan path uses. This loop once
+    # made the decision itself and fell behind: it never learned about
+    # `not_metered`, so repricing relabelled every locally-served event as
+    # `unpriced` - a different and wrong claim, rendered identically as an em dash.
+    for key, provider, model, upstream, tokens in store.iter_priceable():
+        usd, basis, note = decide_cost(
+            provider=provider,
+            model=model,
+            tokens=tokens,
+            upstream_provider=upstream,
+            catalog=cat,
+            subscription=cfg.billing.subscription_for(provider),
+        )
+        if basis is CostBasis.UNPRICED:
             unpriced += 1
-            updates.append((key, None, CostBasis.UNPRICED, f"no price for {model!r}"))
-            continue
-        usd, note = compute_cost(tokens, price)
-        subscription = cfg.billing.subscription_for(provider)
-        updates.append((key, usd, resolve_basis(provider, subscription=subscription), note))
+        updates.append((key, usd, basis, note))
 
     return store.update_costs(updates), unpriced

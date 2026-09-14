@@ -171,6 +171,60 @@ def test_no_telemetry_or_http_clients_imported() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "file:///etc/passwd",
+        "file://localhost/etc/shadow",
+        "http://models.dev/api.json",
+        "https://evil.example.com/api.json",
+        "https://models.dev.evil.example.com/api.json",
+        "https://user:pw@evil.example.com/api.json",
+        "ftp://models.dev/api.json",
+        "data:application/json,{}",
+        "",
+    ],
+)
+def test_pricing_refresh_refuses_any_destination_but_models_dev(url: str) -> None:
+    """G3: the one function allowed to open a socket may only open *that* socket.
+
+    ``refresh_snapshot`` takes the url as an argument, and urllib honours
+    ``file://``, ``ftp://`` and ``data:`` — so without a check the single opt-in
+    egress doubles as an arbitrary-file reader, and "one destination" is a claim
+    about intent rather than a property of the code.
+
+    The lookalike host matters as much as the scheme: ``models.dev.evil.example.com``
+    passes any check written with ``startswith`` or ``in``.
+    """
+    from burnometer.pricing.catalog import refresh_snapshot
+
+    with pytest.raises(ValueError, match="only permitted destination"):
+        refresh_snapshot(url=url)
+
+
+def test_the_refusal_names_no_secret() -> None:
+    """A url can carry credentials in its userinfo; the message must not echo them."""
+    from burnometer.pricing.catalog import refresh_snapshot
+
+    with pytest.raises(ValueError) as caught:
+        refresh_snapshot(url="https://user:hunter2@evil.example.com/api.json")
+    assert "hunter2" not in str(caught.value)
+
+
+def test_the_permitted_url_passes_the_check_and_only_then_hits_the_network() -> None:
+    """The guard must not be so strict it blocks the real thing.
+
+    Reaching the network is what the autouse blocker exists to stop, so getting
+    that far — rather than a ValueError — is the assertion.
+    """
+    from conftest import NetworkAccessBlocked
+
+    from burnometer.pricing.catalog import MODELS_DEV_URL, refresh_snapshot
+
+    with pytest.raises(NetworkAccessBlocked):
+        refresh_snapshot(url=MODELS_DEV_URL)
+
+
 # ---------------------------------------------------------------- G4 --------
 
 
