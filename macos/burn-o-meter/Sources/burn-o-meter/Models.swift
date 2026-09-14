@@ -304,37 +304,42 @@ struct Snapshot {
     /// there is no window to run out of, so cost leads.
     var menuBarTitle: String { menuBarTitle(style: Preferences.menuBarStyle) }
 
+    /// Text only: the meter glyph is a template image on the button
+    /// (`MenuBarIcon`), not a character in this string. Keeping it out means macOS
+    /// can tint it for the bar it lands in, and that `.minimal` can be a genuinely
+    /// empty title rather than a lone emoji.
+    ///
     /// - Parameter style: how much to show. The menu bar is finite and shared, and
     ///   macOS drops an item that no longer fits without saying so — which looks
     ///   exactly like the app failing to launch. See `MenuBarStyle`.
     func menuBarTitle(style: MenuBarStyle) -> String {
-        if error != nil { return "🔥 ⚠️" }
-        if style == .minimal { return "🔥" }
+        if error != nil { return "⚠️" }
+        if style == .minimal { return "" }
 
         let spend = subtotals.first.map { "\($0.0.prefix)\(Format.money($0.1))" }
         let onSubscription = subtotals.first?.0 == .apiEquivalent
 
         if let quota = primaryQuota, let percent = quota.usedPercent {
             let pct = "\(Int(percent.rounded()))%"
-            guard let spend else { return "🔥 \(pct)" }
+            guard let spend else { return pct }
             switch style {
             case .full:
-                return onSubscription ? "🔥 \(pct) · \(spend)" : "🔥 \(spend) · \(pct)"
+                return onSubscription ? "\(pct) · \(spend)" : "\(spend) · \(pct)"
             case .compact:
                 // Cents in a menu bar are noise: nobody acts on the difference
                 // between $47.97 and $48, and the two characters cost real width.
                 let tight = subtotals.first.map { "\($0.0.prefix)\(Format.moneyTight($0.1))" } ?? ""
-                return onSubscription ? "🔥 \(pct) \(tight)" : "🔥 \(tight) \(pct)"
+                return onSubscription ? "\(pct) \(tight)" : "\(tight) \(pct)"
             case .oneNumber:
                 // Which number survives depends on how the user pays: on a
                 // subscription the window is the binding constraint, on an API key
                 // there is no window to exhaust and only cost means anything.
-                return onSubscription ? "🔥 \(pct)" : "🔥 \(spend)"
+                return onSubscription ? pct : spend
             case .minimal:
-                return "🔥"
+                return ""
             }
         }
-        return spend.map { "🔥 \($0)" } ?? "🔥 —"
+        return spend ?? "—"
     }
 }
 

@@ -54,10 +54,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Right-click opens the options menu; left-click opens the popover.
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
 
+        // The glyph. A template image, so macOS tints it for the bar it lands in
+        // and inverts it while the item is clicked - see MenuBarIcon.
+        statusItem.button?.image = MenuBarIcon.image
+        statusItem.button?.imagePosition = .imageLeading
+        // A little air between glyph and number; without it they read as one word.
+        statusItem.button?.imageHugsTitle = true
+
         // Set synchronously. With `variableLength` and no title or image the
         // button has zero width and is invisible, which looks exactly like the
-        // app failing to launch.
-        statusItem.button?.title = "🔥 …"
+        // app failing to launch. The image alone now guarantees a width, but the
+        // placeholder still says the number is coming rather than absent.
+        statusItem.button?.title = "…"
         statusItem.button?.toolTip = "burn-o-meter"
 
         popover.behavior = .transient
@@ -477,6 +485,15 @@ if CommandLine.arguments.contains("--enable-login-item")
 // Layout regression check, run by CI. See LayoutCheck for why it exists.
 if CommandLine.arguments.contains("--check-layout") {
     LayoutCheck.run()
+}
+
+// Renders the status-bar glyph to a file, so a change to it can be looked at.
+if let i = CommandLine.arguments.firstIndex(of: "--preview-menubar-icon"),
+   i + 1 < CommandLine.arguments.count {
+    let path = CommandLine.arguments[i + 1]
+    let ok = MenuBarIcon.writePreview(to: path)
+    print(ok ? "wrote \(path)" : "failed to write \(path)")
+    exit(ok ? 0 : 1)
 }
 
 // Quota freshness check, run by CI. See FreshnessCheck for why it exists.
