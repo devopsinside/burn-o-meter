@@ -10,6 +10,13 @@ class BurnOMeter < Formula
   url "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/v0.6.2.tar.gz"
   sha256 "42145701c722cd9a967c8e67ab1558e2ead420ac60a00843d9268cac9f0d8d9c"
 
+  bottle do
+    root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.2"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "1163fb04daf39d4e3e1cffc140c71b3d41812f611e05841c11be6d6f70b796d1"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "f12788ec9cde7c9a48a5fa1191f04e136589d4387810648896ed12a9a250e863"
+    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "db171533330422aa5fdf6bc29a2f868b7b671776ebe1b8383dcc8fe4da68418f"
+  end
+
 
   license "MIT"
 
