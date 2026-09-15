@@ -8,7 +8,7 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
-## [Unreleased]
+## [0.6.2] — 2026-09-16
 
 ### Fixed
 
@@ -377,6 +377,7 @@ without provenance is the thing this project exists to avoid.
 First alpha. Claude Code and Codex adapters, TTL-aware pricing, SQLite storage,
 the macOS menu bar app, and the security guarantees with their enforcing tests.
 
+[0.6.2]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.2
 [0.6.1]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.1
 [0.6.0]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.0
 [0.5.0]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.5.0
