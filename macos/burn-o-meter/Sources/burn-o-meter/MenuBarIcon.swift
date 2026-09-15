@@ -177,15 +177,24 @@ enum MenuBarIcon {
     /// slightly *above* the frame's centre - 0.514, not 0.500.
     ///
     /// The number is measured, not derived: `--probe-alignment` renders the real
-    /// status-bar button and reports the distance between the two centroids.
-    /// Sweeping this constant put the crossing at 0.055, leaving 0.008pt of
-    /// residual against 0.194pt before.
-    private static let inkLift: CGFloat = 0.055
+    /// status-bar button and reports the distance between the centroid of the
+    /// glyph's ink and the centroid of the title's. Sweeping this constant put the
+    /// crossing at 0.083, leaving 0.003pt of residual.
+    ///
+    /// Two earlier values were wrong because the measurement was. 0.042 centred the
+    /// ink in its frame and left 0.194pt; 0.055 aimed at a text centre derived from
+    /// a probe that split glyph from title at a hardcoded column, which sliced into
+    /// the digits and reported the two as aligned when a screenshot plainly showed
+    /// they were not. The probe now finds the blank gutter between them.
+    private static let inkLift: CGFloat = 0.083
 
     /// Where `inkBounds` should put the ink's vertical centre. Checked by
     /// `--check-layout`, so a change to the dial's geometry cannot quietly undo the
     /// alignment above.
-    static let expectedInkCentreY: Double = 0.514
+    ///
+    /// Well above 0.500, and that is the point: the ink has to sit high in its own
+    /// box to line up with a title that has no descender to balance it.
+    static let expectedInkCentreY: Double = 0.541
 
     private static func draw(in ctx: CGContext, box: CGRect) {
         let black = CGColor(red: 0, green: 0, blue: 0, alpha: 1)
