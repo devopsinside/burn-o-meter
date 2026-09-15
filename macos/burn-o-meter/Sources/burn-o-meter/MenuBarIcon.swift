@@ -127,13 +127,58 @@ enum MenuBarIcon {
         return CGImageDestinationFinalize(dest)
     }
 
+    /// The ink's bounding box, as fractions of the glyph's own box.
+    ///
+    /// Alignment in the menu bar is about where the *ink* sits, not where the
+    /// image's frame does: AppKit centres the frame, so empty margin inside it
+    /// pushes the drawing off the text's optical centre. Printed by
+    /// `--preview-menubar-icon` so the numbers are checked rather than eyeballed.
+    static func inkBounds(samples: Int = 512) -> (minX: Double, minY: Double, maxX: Double, maxY: Double)? {
+        guard let ctx = CGContext(
+            data: nil, width: samples, height: samples, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        let side = CGFloat(samples)
+        ctx.scaleBy(x: side / height, y: side / height)
+        draw(in: ctx, box: CGRect(x: 0, y: 0, width: height, height: height))
+        guard let data = ctx.data else { return nil }
+        let bytes = data.bindMemory(to: UInt8.self, capacity: samples * samples * 4)
+        var minX = samples, minY = samples, maxX = -1, maxY = -1
+        for y in 0..<samples {
+            for x in 0..<samples where bytes[(y * ctx.bytesPerRow) + x * 4 + 3] > 8 {
+                if x < minX { minX = x }
+                if x > maxX { maxX = x }
+                if y < minY { minY = y }
+                if y > maxY { maxY = y }
+            }
+        }
+        guard maxX >= 0 else { return nil }
+        let n = Double(samples)
+        // Rows are top-down in the bitmap; report in the drawing's own orientation.
+        return (Double(minX) / n, 1 - Double(maxY + 1) / n,
+                Double(maxX + 1) / n, 1 - Double(minY) / n)
+    }
+
+    /// How far to raise the drawing so its *ink* is centred, not its frame.
+    ///
+    /// The arc's lower ends reach further below the dial's centre than its apex
+    /// reaches above, so the shape drawn from these proportions sits low in its
+    /// own box: measured margins were 0.117 at the bottom against 0.201 at the
+    /// top, putting the ink's centre at 0.458. AppKit centres the image's frame,
+    /// not what is drawn inside it, so that 0.042 became a visible drop against
+    /// the text beside it.
+    ///
+    /// Half the difference, and `inkBounds` is what checks it stayed right.
+    private static let inkLift: CGFloat = 0.042
+
     private static func draw(in ctx: CGContext, box: CGRect) {
         let black = CGColor(red: 0, green: 0, blue: 0, alpha: 1)
         func rad(_ deg: CGFloat) -> CGFloat { deg * .pi / 180 }
 
         // The dial. Heavier in proportion than the app icon's, because a hairline
         // arc disappears at 16pt on a non-Retina display.
-        let centre = CGPoint(x: box.midX, y: box.minY + box.height * 0.32)
+        let centre = CGPoint(x: box.midX, y: box.minY + box.height * (0.32 + inkLift))
         let radius = box.width * 0.42
         let lineWidth = box.width * 0.115
 
@@ -155,7 +200,7 @@ enum MenuBarIcon {
         let flameW = box.width * 0.30
         let flameH = box.height * 0.45
         let flameBox = CGRect(x: box.midX - flameW / 2,
-                              y: box.minY + box.height * 0.16,
+                              y: box.minY + box.height * (0.16 + inkLift),
                               width: flameW, height: flameH)
 
         // Cut the gap. Stroking the flame's own path in `.clear` erases a band of
