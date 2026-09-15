@@ -46,10 +46,20 @@ without provenance is the thing this project exists to avoid.
   centre, at 0.514.
 
   That number is measured rather than reasoned. `--probe-alignment` renders the
-  real status-bar button and reports the distance between the two centroids;
-  sweeping the offset put the crossing at 0.055, leaving 0.005pt of residual
-  against 0.194pt. `--check-layout` fails if the ink moves off that target, and
-  catches both the original geometry and the half-fix.
+  real status-bar button and compares the alpha-weighted centroid of the glyph's
+  ink against the title's; sweeping the offset put the crossing at 0.083, leaving
+  0.003pt of residual against 0.194pt. `--check-layout` fails if the ink moves off
+  that target, and rejects every earlier value.
+
+  It took three wrong measurements to get one right, and two of them reported
+  perfect alignment for an icon that visibly was not: taking the midpoint of the
+  ink's extremes, which at these sizes rounds every candidate to the same pixel;
+  rendering the button into a hand-built bitmap, which draws nothing for a
+  status-bar button and left the measurements reading uninitialised memory; and
+  splitting glyph from title at a hardcoded column, which sliced into the digits
+  and contaminated the centroid. The probe now uses the rep AppKit provides, an
+  alpha-weighted centroid, and a split found by locating the blank gutter between
+  the two.
 - **The rate-limit rows hid the one thing needed to read them.** A quota's age was
   shown only once the reading had aged past its sampling interval, and the note
   explaining that Claude records these about every 15 minutes was suppressed on

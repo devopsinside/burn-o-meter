@@ -382,7 +382,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             let w = rep.pixelsWide, h = rep.pixelsHigh
             let scale = CGFloat(h) / bounds.height
-            let split = Int((MenuBarIcon.height + 2) * scale)
+            // Find the gap between glyph and text rather than assuming where it is.
+            // A hardcoded split can slice into the digits, and the contaminated
+            // centroid then reports the two as aligned when they are not - which is
+            // what it did, against a screenshot that plainly showed otherwise.
+            var columnInk = [Bool](repeating: false, count: w)
+            for x in 0..<w {
+                for y in 0..<h {
+                    if let c = rep.colorAt(x: x, y: y), c.alphaComponent > 0.05 {
+                        columnInk[x] = true
+                        break
+                    }
+                }
+            }
+            let firstInk = columnInk.firstIndex(of: true) ?? 0
+            // The first run of blank columns after the glyph starts.
+            var split = w
+            var seenInk = false
+            var blankRun = 0
+            for x in firstInk..<w {
+                if columnInk[x] {
+                    seenInk = true
+                    blankRun = 0
+                } else if seenInk {
+                    blankRun += 1
+                    if blankRun >= Int(2 * scale) { split = x - blankRun + 1; break }
+                }
+            }
+            print("  split at column \(split) of \(w) (ink starts \(firstInk))")
 
             // Alpha-weighted centroid, not the midpoint of the extremes. The
             // extremes move a whole pixel at a time, so at these sizes they cannot
