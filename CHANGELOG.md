@@ -37,9 +37,19 @@ without provenance is the thing this project exists to avoid.
   drawn from those proportions was not centred in its own box — measured margins
   of 0.117 at the bottom against 0.201 at the top, putting the ink's centre at
   0.458. AppKit centres an image's *frame*, not what is drawn inside it, so that
-  margin became a visible drop. `--check-layout` now measures the rendered ink and
-  fails if its centre moves off 0.500, and `--preview-menubar-icon` prints the
-  margins, so this is checked rather than eyeballed.
+  margin became a visible drop.
+
+  Centring the ink in its frame was necessary and **not sufficient** — it was still
+  visibly low. The frame's centre is not where the text's ink sits: a title of
+  digits and a percent sign has no descender, so it rides high in the font box
+  AppKit centres. Aligning to the text means sitting slightly *above* the frame's
+  centre, at 0.514.
+
+  That number is measured rather than reasoned. `--probe-alignment` renders the
+  real status-bar button and reports the distance between the two centroids;
+  sweeping the offset put the crossing at 0.055, leaving 0.005pt of residual
+  against 0.194pt. `--check-layout` fails if the ink moves off that target, and
+  catches both the original geometry and the half-fix.
 - **The rate-limit rows hid the one thing needed to read them.** A quota's age was
   shown only once the reading had aged past its sampling interval, and the note
   explaining that Claude records these about every 15 minutes was suppressed on

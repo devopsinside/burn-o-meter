@@ -160,17 +160,32 @@ enum MenuBarIcon {
                 Double(maxX + 1) / n, 1 - Double(minY) / n)
     }
 
-    /// How far to raise the drawing so its *ink* is centred, not its frame.
+    /// How far to raise the drawing so it lines up with the number beside it.
     ///
-    /// The arc's lower ends reach further below the dial's centre than its apex
-    /// reaches above, so the shape drawn from these proportions sits low in its
-    /// own box: measured margins were 0.117 at the bottom against 0.201 at the
-    /// top, putting the ink's centre at 0.458. AppKit centres the image's frame,
-    /// not what is drawn inside it, so that 0.042 became a visible drop against
-    /// the text beside it.
+    /// Two separate offsets, and getting only the first produced an icon that was
+    /// still visibly low.
     ///
-    /// Half the difference, and `inkBounds` is what checks it stayed right.
-    private static let inkLift: CGFloat = 0.042
+    /// The shape does not sit centred in its own box: the arc runs from 200° to
+    /// -20°, so its lower ends reach further below the dial's centre than the apex
+    /// reaches above, and the measured margins were 0.117 at the bottom against
+    /// 0.201 at the top. Correcting only that centres the *ink in the frame*, at
+    /// 0.500.
+    ///
+    /// But the frame's centre is not where the text's ink sits. A menu bar title
+    /// of digits and a percent sign has no descender, so its ink rides high in the
+    /// font box that AppKit centres. Aligning to the text therefore means sitting
+    /// slightly *above* the frame's centre - 0.514, not 0.500.
+    ///
+    /// The number is measured, not derived: `--probe-alignment` renders the real
+    /// status-bar button and reports the distance between the two centroids.
+    /// Sweeping this constant put the crossing at 0.055, leaving 0.008pt of
+    /// residual against 0.194pt before.
+    private static let inkLift: CGFloat = 0.055
+
+    /// Where `inkBounds` should put the ink's vertical centre. Checked by
+    /// `--check-layout`, so a change to the dial's geometry cannot quietly undo the
+    /// alignment above.
+    static let expectedInkCentreY: Double = 0.514
 
     private static func draw(in ctx: CGContext, box: CGRect) {
         let black = CGColor(red: 0, green: 0, blue: 0, alpha: 1)

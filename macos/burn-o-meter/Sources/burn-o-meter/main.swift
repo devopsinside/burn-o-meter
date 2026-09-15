@@ -349,6 +349,91 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay + 1.0) { exit(0) }
     }
 
+    /// Render the real status-bar button and measure where the glyph and the text
+    /// actually land, rather than reasoning about font metrics.
+    ///
+    /// Centring the glyph's ink inside its own frame was necessary and turned out
+    /// not to be sufficient: AppKit positions the image and the title by rules of
+    /// its own, so the only way to know whether the two line up is to draw the
+    /// composed button and look at the pixels.
+    func probeAlignmentAndExit(writingTo path: String?) {
+        // The poll timer rewrites the title from live data, so without stopping it
+        // this measures whatever the number happened to be - which is how the same
+        // build reported 0.008pt one run and 0.066pt the next.
+        timer?.invalidate()
+        timer = nil
+        statusItem.button?.title = "20%"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            guard let button = self.statusItem.button else { exit(1) }
+            button.layoutSubtreeIfNeeded()
+            let bounds = button.bounds
+            // `cacheDisplay` into the rep AppKit offers is the only thing that
+            // actually draws a status-bar button. Rendering into a hand-made
+            // NSBitmapImageRep via displayIgnoringOpacity produced a blank file,
+            // and every measurement taken over it was uninitialised memory - which
+            // reported flawless alignment for offsets that were visibly wrong.
+            guard bounds.width > 1,
+                  let rep = button.bitmapImageRepForCachingDisplay(in: bounds)
+            else {
+                print("could not render the button")
+                exit(1)
+            }
+            button.cacheDisplay(in: bounds, to: rep)
+
+            let w = rep.pixelsWide, h = rep.pixelsHigh
+            let scale = CGFloat(h) / bounds.height
+            let split = Int((MenuBarIcon.height + 2) * scale)
+
+            // Alpha-weighted centroid, not the midpoint of the extremes. The
+            // extremes move a whole pixel at a time, so at these sizes they cannot
+            // separate one candidate offset from the next; a centroid reads the
+            // anti-aliasing and resolves well below a pixel.
+            func inkCentre(from x0: Int, to x1: Int) -> (centre: Double, lo: Int, hi: Int)? {
+                var weighted = 0.0, total = 0.0
+                var lo = h, hi = -1
+                for y in 0..<h {
+                    var rowWeight = 0.0
+                    for x in max(0, x0)..<min(w, x1) {
+                        guard let c = rep.colorAt(x: x, y: y) else { continue }
+                        let a = Double(c.alphaComponent)
+                        if a > 0.02 {
+                            rowWeight += a
+                            if y < lo { lo = y }
+                            if y > hi { hi = y }
+                        }
+                    }
+                    weighted += rowWeight * Double(y)
+                    total += rowWeight
+                }
+                guard total > 0, hi >= 0 else { return nil }
+                return (weighted / total, lo, hi)
+            }
+
+            let glyph = inkCentre(from: 0, to: split)
+            let text = inkCentre(from: split, to: w)
+            print("button \(Int(bounds.width))x\(Int(bounds.height))pt, raster \(w)x\(h)")
+            if let g = glyph {
+                print(String(format: "  glyph rows %d…%d  centroid %.3f", g.lo, g.hi, g.centre))
+            }
+            if let t = text {
+                print(String(format: "  text  rows %d…%d  centroid %.3f", t.lo, t.hi, t.centre))
+            }
+            if let g = glyph, let t = text {
+                let delta = g.centre - t.centre
+                print(String(format: "  glyph is %.3f px (%.3f pt) %@ the text",
+                             abs(delta), abs(delta) / Double(scale),
+                             delta > 0 ? "BELOW" : "above"))
+            }
+            if let path {
+                if let data = rep.representation(using: .png, properties: [:]) {
+                    try? data.write(to: URL(fileURLWithPath: path))
+                    print("  wrote \(path)")
+                }
+            }
+            exit(0)
+        }
+    }
+
     /// Drive the real popover once and report what it actually became.
     ///
     /// Offline measurement could not settle this: `preferredContentSize` is 0
@@ -510,6 +595,7 @@ if CommandLine.arguments.contains("--check-freshness") {
     FreshnessCheck.run()
 }
 
+let probingAlignment = CommandLine.arguments.contains("--probe-alignment")
 let probingPopover = CommandLine.arguments.contains("--probe-popover")
 let probingMenuBar = CommandLine.arguments.contains("--probe-menubar")
 
@@ -520,6 +606,14 @@ app.delegate = delegate
 if probingMenuBar {
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
         delegate.probeMenuBarAndExit()
+    }
+}
+
+if probingAlignment {
+    let i = CommandLine.arguments.firstIndex(of: "--probe-alignment")!
+    let out = i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : nil
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        delegate.probeAlignmentAndExit(writingTo: out)
     }
 }
 
