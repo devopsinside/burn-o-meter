@@ -32,6 +32,25 @@ without provenance is the thing this project exists to avoid.
   both callers use; the duplication was what let them drift.
 - The menu bar's `·` between percentage and spend read as a stray full stop at
   that size. Replaced with a wider gap, which is also narrower than `" · "` was.
+- **The menu bar glyph did not line up with the rest of the bar.** Three attempts
+  at this treated it as an offset to tune, and each made it worse in a new way,
+  because the reference was wrong: the glyph was being aligned to its own adjacent
+  text rather than to the bar. Measuring Apple's SF Symbols at the menu bar font's
+  size settles it — `gauge.medium`, `speedometer` and `flame.fill` all centre their
+  ink at 0.498–0.500 and fill ~0.90 of their box, where ours sat at 0.541 filling
+  0.68. The image is now built *from* the shape: the drawing is rasterised, its ink
+  measured, and the image sized and placed so that ink fills it and is centred,
+  which is what every other item in the bar does.
+
+  The title was then what sat high, as originally reported. Digits, a percent sign
+  and a currency amount have no descender, so the text's ink fills only the upper
+  part of the font box AppKit centres — rows 5…15 of a 22pt button against the
+  glyph's 5…17. A one-point baseline offset on the title brings both bounding-box
+  centres to 11.0. Corrected on the text rather than the icon on purpose: raising
+  the icon to meet its own text is what put it out of line with its neighbours.
+
+  `--check-layout` now measures Apple's symbols too, so the target fails if their
+  convention ever moves rather than silently going stale.
 - **The menu bar glyph sat low against the number beside it.** The dial's lower
   ends reach further below its centre than the apex reaches above, so the shape
   drawn from those proportions was not centred in its own box — measured margins

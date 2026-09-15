@@ -10,37 +10,215 @@ import UniformTypeIdentifiers
 /// is: a diff can show what changed about it, and it renders exactly at whatever
 /// size and backing scale the bar happens to be, with no asset set to keep in step.
 ///
-/// **It is a template image**, which is what makes it correct rather than merely
-/// present. macOS re-tints a template to suit the menu bar it lands in — black on a
-/// light bar, white on a dark one, inverted again while the item is clicked, and
-/// adjusted under Increase Contrast and Reduce Transparency. A coloured image opts
-/// out of every one of those and keeps its own colours against a highlight drawn
-/// behind it. So the brand orange deliberately does not survive into the bar; it is
-/// carried by the app icon and the popover, where there is a background to own it.
+/// **It is a template image.** macOS re-tints a template to suit the menu bar it
+/// lands in — black on a light bar, white on a dark one, inverted again while the
+/// item is clicked, and adjusted under Increase Contrast. A coloured image opts out
+/// of every one of those. So the brand orange deliberately does not survive into
+/// the bar; it is carried by the app icon and the popover, where there is a
+/// background to own it.
 ///
-/// The app icon's own trick for separating the flame from the dial — a halo stroked
-/// in the background colour — cannot work here, because a template has no colours to
-/// halo with. The gap is cut instead: the flame's silhouette is cleared out of the
-/// arc before the flame is filled, so the two read as separate shapes in one colour.
+/// **The image is built from the drawing, not the drawing tuned to the image.**
+/// The shape is rasterised once, its ink measured, and the image then sized and
+/// positioned so that ink lands where Apple puts the ink in an SF Symbol. Three
+/// hand-tuned offsets failed before this, each a guess at a number that can simply
+/// be read — and two of them "passed" a probe that was measuring the wrong thing
+/// while a screenshot showed the icon plainly out of line with its neighbours.
 enum MenuBarIcon {
-    /// Point height of the glyph. The bar gives ~22pt; 16 leaves the breathing room
-    /// macOS itself uses, and keeps the arc from touching the menu bar's edges.
-    static let height: CGFloat = 18
+    /// How tall the drawn shape should be, in points.
+    ///
+    /// Taken from Apple's artwork rather than chosen. An SF Symbol configured at
+    /// the menu bar font's size renders 15pt square with its ink filling 0.896 of
+    /// that — 13.4pt. `gauge.medium`, `speedometer` and `flame.fill` all agree to
+    /// within a few thousandths; `--preview-menubar-icon` prints them.
+    static let targetInkHeight: CGFloat = 13.4
+
+    /// Where Apple centres the ink inside a symbol's box: the middle. Measured at
+    /// 0.498–0.506 across their symbols.
+    ///
+    /// This is the correction that mattered. Every other item in the bar is placed
+    /// this way, so an icon aligned instead to its own adjacent text — whose digits
+    /// have no descender and therefore ride high — ends up standing out of line
+    /// with all of them, which is exactly how it looked.
+    static let targetInkCentre: Double = 0.5
+
+    /// How far to drop the title so its ink shares the glyph's centre line.
+    ///
+    /// Negative moves text down. Measured, not guessed: on a 22pt button the glyph
+    /// occupies rows 5…17 for a centre of 11.0 while "20%" occupies 5…15 for 10.0,
+    /// and `--probe-alignment` reports the difference directly.
+    static let titleBaselineOffset: CGFloat = -1.0
 
     /// Built once. `NSStatusItem` asks for this on every redraw.
     static let image: NSImage = make()
 
+    /// The ink of `draw(in:)` as fractions of the box handed to it. Measured once.
+    static let rawInk: (minX: Double, minY: Double, maxX: Double, maxY: Double) =
+        measureRawInk() ?? (0, 0, 1, 1)
+
     private static func make() -> NSImage {
-        let size = NSSize(width: height, height: height)
+        // Scale the drawing until its ink is as tall as Apple's, then make the
+        // image exactly that ink. With no slack around it the ink is centred by
+        // construction, so AppKit centring the frame centres what is drawn — and
+        // there is no offset left to get wrong.
+        let inkH = max(CGFloat(rawInk.maxY - rawInk.minY), 0.001)
+        let inkW = max(CGFloat(rawInk.maxX - rawInk.minX), 0.001)
+
+        // Whole points, and the ink fitted to *those* rather than the other way
+        // round. Sizing the image from the unrounded ink height and then rounding
+        // it made the image shorter than what was drawn into it, so the top of the
+        // arc was clipped off and the remainder measured as sitting low.
+        let height = targetInkHeight.rounded()
+        let side = height / inkH
+        let width = (inkW * side).rounded()
+
+        let size = NSSize(width: width, height: height)
         let image = NSImage(size: size, flipped: false) { rect in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            draw(in: ctx, box: rect)
+            // Place the box so the ink lands on the rect exactly, sharing whatever
+            // the width rounding left over between the two sides.
+            let dx = (rect.width - inkW * side) / 2
+            draw(in: ctx, box: CGRect(x: rect.minX - CGFloat(rawInk.minX) * side + dx,
+                                      y: rect.minY - CGFloat(rawInk.minY) * side,
+                                      width: side, height: side))
             return true
         }
-        // The whole point: let AppKit own the colour.
         image.isTemplate = true
         return image
     }
+
+    // MARK: - Measurement
+
+    /// Rasterise `draw(in:)` in a square box and find the extent of its ink.
+    private static func measureRawInk(samples: Int = 512)
+        -> (minX: Double, minY: Double, maxX: Double, maxY: Double)? {
+        guard let ctx = bitmap(width: samples, height: samples) else { return nil }
+        draw(in: ctx, box: CGRect(x: 0, y: 0, width: CGFloat(samples), height: CGFloat(samples)))
+        return inkExtent(of: ctx)
+    }
+
+    /// Where the ink sits inside the *finished image*, as fractions of its size.
+    ///
+    /// The image rather than the raw drawing: what has to be right is how the thing
+    /// AppKit places relates to its own frame, because that frame is what gets
+    /// centred in the bar.
+    static func inkBounds(samples: Int = 512)
+        -> (minX: Double, minY: Double, maxX: Double, maxY: Double)? {
+        guard let ctx = rasterise(scale: CGFloat(samples) / image.size.height) else { return nil }
+        return inkExtent(of: ctx)
+    }
+
+    /// Where Apple puts the ink inside one of their own symbols, for reference.
+    static func symbolInk(_ name: String) -> (minY: Double, maxY: Double, height: Double)? {
+        let config = NSImage.SymbolConfiguration(pointSize: NSFont.menuBarFont(ofSize: 0).pointSize,
+                                                 weight: .regular)
+        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(config) else { return nil }
+        var rect = NSRect(origin: .zero, size: symbol.size)
+        guard rect.width > 0, rect.height > 0,
+              let cg = symbol.cgImage(forProposedRect: &rect, context: nil, hints: nil),
+              let ctx = bitmap(width: cg.width * 8, height: cg.height * 8)
+        else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: ctx.width, height: ctx.height))
+        guard let ink = inkExtent(of: ctx) else { return nil }
+        return (ink.minY, ink.maxY, ink.maxY - ink.minY)
+    }
+
+    private static func bitmap(width: Int, height: Int) -> CGContext? {
+        guard width > 0, height > 0 else { return nil }
+        return CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                         bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    }
+
+    /// Bounding box of everything with meaningful alpha, as fractions of the canvas.
+    private static func inkExtent(of ctx: CGContext)
+        -> (minX: Double, minY: Double, maxX: Double, maxY: Double)? {
+        guard let data = ctx.data else { return nil }
+        let w = ctx.width, h = ctx.height
+        let bytes = data.bindMemory(to: UInt8.self, capacity: h * ctx.bytesPerRow)
+        var minX = w, minY = h, maxX = -1, maxY = -1
+        for y in 0..<h {
+            for x in 0..<w where bytes[y * ctx.bytesPerRow + x * 4 + 3] > 8 {
+                if x < minX { minX = x }
+                if x > maxX { maxX = x }
+                if y < minY { minY = y }
+                if y > maxY { maxY = y }
+            }
+        }
+        guard maxX >= 0 else { return nil }
+        // Rows are indexed from the top of the buffer while the drawing's y runs
+        // upward, so the vertical extent is flipped back here. Returning it
+        // unflipped silently reported the shape as sitting 0.083 higher than it
+        // does - which, since that was the size of the offset being removed, looked
+        // exactly like the offset still being applied.
+        return (Double(minX) / Double(w), 1 - Double(maxY + 1) / Double(h),
+                Double(maxX + 1) / Double(w), 1 - Double(minY) / Double(h))
+    }
+
+    /// The finished image, drawn into a bitmap at `scale`.
+    private static func rasterise(scale: CGFloat) -> CGContext? {
+        let size = image.size
+        guard let ctx = bitmap(width: Int((size.width * scale).rounded()),
+                               height: Int((size.height * scale).rounded())) else { return nil }
+        ctx.scaleBy(x: scale, y: scale)
+        let gc = NSGraphicsContext(cgContext: ctx, flipped: false)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = gc
+        image.draw(in: NSRect(origin: .zero, size: size))
+        NSGraphicsContext.restoreGraphicsState()
+        return ctx
+    }
+
+    /// Writes a side-by-side preview to `path`, for reviewing a change to the glyph
+    /// without installing the app.
+    ///
+    /// Renders the real image at 1x, 2x and 3x, tinted for both a light and a dark
+    /// menu bar. A template is only ever seen tinted, so judging one by its raw
+    /// black silhouette is judging something the user never sees.
+    static func writePreview(to path: String) -> Bool {
+        let scales: [CGFloat] = [1, 2, 3]
+        let pad: CGFloat = 12
+        let size = image.size
+        let cellW = size.width + pad, cellH = size.height + pad
+        let w = Int((cellW * CGFloat(scales.count) + pad) * 3)
+        let h = Int((cellH * 2 + pad) * 3)
+        guard let ctx = bitmap(width: w, height: h) else { return false }
+        ctx.scaleBy(x: 3, y: 3)
+
+        let bars: [(bg: CGColor, tint: CGColor)] = [
+            (CGColor(red: 0.96, green: 0.96, blue: 0.97, alpha: 1),
+             CGColor(red: 0, green: 0, blue: 0, alpha: 0.85)),
+            (CGColor(red: 0.13, green: 0.13, blue: 0.14, alpha: 1),
+             CGColor(red: 1, green: 1, blue: 1, alpha: 0.95)),
+        ]
+
+        for (row, bar) in bars.enumerated() {
+            let y = pad / 2 + CGFloat(row) * cellH
+            ctx.setFillColor(bar.bg)
+            ctx.fill(CGRect(x: 0, y: y - pad / 2, width: CGFloat(w) / 3, height: cellH))
+            for (col, scale) in scales.enumerated() {
+                let x = pad / 2 + CGFloat(col) * cellW
+                guard let glyph = rasterise(scale: scale), let mask = glyph.makeImage() else {
+                    continue
+                }
+                ctx.saveGState()
+                let place = CGRect(x: x, y: y, width: size.width, height: size.height)
+                ctx.clip(to: place, mask: mask)
+                ctx.setFillColor(bar.tint)
+                ctx.fill(place)
+                ctx.restoreGState()
+            }
+        }
+
+        guard let out = ctx.makeImage(),
+              let dest = CGImageDestinationCreateWithURL(
+                  URL(fileURLWithPath: path) as CFURL, "public.png" as CFString, 1, nil)
+        else { return false }
+        CGImageDestinationAddImage(dest, out, nil)
+        return CGImageDestinationFinalize(dest)
+    }
+
+    // MARK: - The shape
 
     /// A flame in a 0...1 box, the same curve the app icon uses. Kept as its own
     /// function so the two silhouettes cannot drift apart.
@@ -60,149 +238,15 @@ enum MenuBarIcon {
         return p
     }
 
-
-    /// Writes a side-by-side preview to `path`, for reviewing a change to the
-    /// glyph without installing the app.
-    ///
-    /// Renders it the way the bar actually will: at 1x, 2x and 3x, tinted for both
-    /// a light and a dark menu bar. A template is only ever seen tinted, so judging
-    /// one by the raw black silhouette is judging something the user never sees.
-    ///
-    ///     burn-o-meter --preview-menubar-icon /tmp/icon.png
-    static func writePreview(to path: String) -> Bool {
-        let scales: [CGFloat] = [1, 2, 3]
-        let pad: CGFloat = 12
-        let cell = height + pad
-        let w = Int((cell * CGFloat(scales.count) + pad) * 3)
-        let h = Int((cell * 2 + pad) * 3)
-
-        guard let ctx = CGContext(
-            data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return false }
-        ctx.scaleBy(x: 3, y: 3)
-
-        // Two bars, the colours macOS actually uses behind a status item.
-        let bars: [(bg: CGColor, tint: CGColor)] = [
-            (CGColor(red: 0.96, green: 0.96, blue: 0.97, alpha: 1),
-             CGColor(red: 0, green: 0, blue: 0, alpha: 0.85)),
-            (CGColor(red: 0.13, green: 0.13, blue: 0.14, alpha: 1),
-             CGColor(red: 1, green: 1, blue: 1, alpha: 0.95)),
-        ]
-
-        for (row, bar) in bars.enumerated() {
-            let y = pad / 2 + CGFloat(row) * cell
-            ctx.setFillColor(bar.bg)
-            ctx.fill(CGRect(x: 0, y: y - pad / 2, width: CGFloat(w) / 3, height: cell))
-            for (col, scale) in scales.enumerated() {
-                let x = pad / 2 + CGFloat(col) * cell
-                // Render the glyph at its backing resolution, then place it at
-                // point size - which is exactly what the window server does.
-                let px = Int(height * scale)
-                guard let glyph = CGContext(
-                    data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
-                    space: CGColorSpaceCreateDeviceRGB(),
-                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-                ) else { continue }
-                glyph.scaleBy(x: scale, y: scale)
-                draw(in: glyph, box: CGRect(x: 0, y: 0, width: height, height: height))
-                guard let mask = glyph.makeImage() else { continue }
-
-                // A template is drawn as a mask filled with the bar's tint.
-                ctx.saveGState()
-                let place = CGRect(x: x, y: y, width: height, height: height)
-                ctx.clip(to: place, mask: mask)
-                ctx.setFillColor(bar.tint)
-                ctx.fill(place)
-                ctx.restoreGState()
-            }
-        }
-
-        guard let out = ctx.makeImage(),
-              let dest = CGImageDestinationCreateWithURL(
-                  URL(fileURLWithPath: path) as CFURL, "public.png" as CFString, 1, nil)
-        else { return false }
-        CGImageDestinationAddImage(dest, out, nil)
-        return CGImageDestinationFinalize(dest)
-    }
-
-    /// The ink's bounding box, as fractions of the glyph's own box.
-    ///
-    /// Alignment in the menu bar is about where the *ink* sits, not where the
-    /// image's frame does: AppKit centres the frame, so empty margin inside it
-    /// pushes the drawing off the text's optical centre. Printed by
-    /// `--preview-menubar-icon` so the numbers are checked rather than eyeballed.
-    static func inkBounds(samples: Int = 512) -> (minX: Double, minY: Double, maxX: Double, maxY: Double)? {
-        guard let ctx = CGContext(
-            data: nil, width: samples, height: samples, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
-        let side = CGFloat(samples)
-        ctx.scaleBy(x: side / height, y: side / height)
-        draw(in: ctx, box: CGRect(x: 0, y: 0, width: height, height: height))
-        guard let data = ctx.data else { return nil }
-        let bytes = data.bindMemory(to: UInt8.self, capacity: samples * samples * 4)
-        var minX = samples, minY = samples, maxX = -1, maxY = -1
-        for y in 0..<samples {
-            for x in 0..<samples where bytes[(y * ctx.bytesPerRow) + x * 4 + 3] > 8 {
-                if x < minX { minX = x }
-                if x > maxX { maxX = x }
-                if y < minY { minY = y }
-                if y > maxY { maxY = y }
-            }
-        }
-        guard maxX >= 0 else { return nil }
-        let n = Double(samples)
-        // Rows are top-down in the bitmap; report in the drawing's own orientation.
-        return (Double(minX) / n, 1 - Double(maxY + 1) / n,
-                Double(maxX + 1) / n, 1 - Double(minY) / n)
-    }
-
-    /// How far to raise the drawing so it lines up with the number beside it.
-    ///
-    /// Two separate offsets, and getting only the first produced an icon that was
-    /// still visibly low.
-    ///
-    /// The shape does not sit centred in its own box: the arc runs from 200° to
-    /// -20°, so its lower ends reach further below the dial's centre than the apex
-    /// reaches above, and the measured margins were 0.117 at the bottom against
-    /// 0.201 at the top. Correcting only that centres the *ink in the frame*, at
-    /// 0.500.
-    ///
-    /// But the frame's centre is not where the text's ink sits. A menu bar title
-    /// of digits and a percent sign has no descender, so its ink rides high in the
-    /// font box that AppKit centres. Aligning to the text therefore means sitting
-    /// slightly *above* the frame's centre - 0.514, not 0.500.
-    ///
-    /// The number is measured, not derived: `--probe-alignment` renders the real
-    /// status-bar button and reports the distance between the centroid of the
-    /// glyph's ink and the centroid of the title's. Sweeping this constant put the
-    /// crossing at 0.083, leaving 0.003pt of residual.
-    ///
-    /// Two earlier values were wrong because the measurement was. 0.042 centred the
-    /// ink in its frame and left 0.194pt; 0.055 aimed at a text centre derived from
-    /// a probe that split glyph from title at a hardcoded column, which sliced into
-    /// the digits and reported the two as aligned when a screenshot plainly showed
-    /// they were not. The probe now finds the blank gutter between them.
-    private static let inkLift: CGFloat = 0.083
-
-    /// Where `inkBounds` should put the ink's vertical centre. Checked by
-    /// `--check-layout`, so a change to the dial's geometry cannot quietly undo the
-    /// alignment above.
-    ///
-    /// Well above 0.500, and that is the point: the ink has to sit high in its own
-    /// box to line up with a title that has no descender to balance it.
-    static let expectedInkCentreY: Double = 0.541
-
+    /// The glyph, in whatever box it is given. Carries no positioning of its own:
+    /// where it ends up is decided by `make()`, from the ink this produces.
     private static func draw(in ctx: CGContext, box: CGRect) {
         let black = CGColor(red: 0, green: 0, blue: 0, alpha: 1)
         func rad(_ deg: CGFloat) -> CGFloat { deg * .pi / 180 }
 
         // The dial. Heavier in proportion than the app icon's, because a hairline
-        // arc disappears at 16pt on a non-Retina display.
-        let centre = CGPoint(x: box.midX, y: box.minY + box.height * (0.32 + inkLift))
+        // arc disappears at this size on a non-Retina display.
+        let centre = CGPoint(x: box.midX, y: box.minY + box.height * 0.32)
         let radius = box.width * 0.42
         let lineWidth = box.width * 0.115
 
@@ -214,17 +258,17 @@ enum MenuBarIcon {
         ctx.strokePath()
 
         // Narrow and tall. A flame whose width approaches its height stops being a
-        // flame and becomes a dot in a ring - the tip is the whole silhouette.
+        // flame and becomes a dot in a ring — the tip is the whole silhouette.
         //
         // The height is bounded by where the arc's *inner* edge falls, not its
         // centreline: at 0.52 the tip landed exactly on that edge and the two fused
-        // into a spike, which reads as a thermometer rather than a flame. The arc's
-        // inner edge sits at (0.32 + 0.42 - 0.0575) = 0.68 of the box, so the tip
-        // stops at 0.61 and keeps visible daylight under the apex.
+        // into a spike, which reads as a thermometer. The inner edge sits at
+        // (0.32 + 0.42 - 0.0575) = 0.68 of the box, so the tip stops at 0.61 and
+        // keeps visible daylight under the apex.
         let flameW = box.width * 0.30
         let flameH = box.height * 0.45
         let flameBox = CGRect(x: box.midX - flameW / 2,
-                              y: box.minY + box.height * (0.16 + inkLift),
+                              y: box.minY + box.height * 0.16,
                               width: flameW, height: flameH)
 
         // Cut the gap. Stroking the flame's own path in `.clear` erases a band of

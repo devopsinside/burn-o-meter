@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // button has zero width and is invisible, which looks exactly like the
         // app failing to launch. The image alone now guarantees a width, but the
         // placeholder still says the number is coming rather than absent.
-        statusItem.button?.title = "…"
+        setTitle("…")
         statusItem.button?.toolTip = "burn-o-meter"
 
         popover.behavior = .transient
@@ -125,6 +125,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         timer?.invalidate()
     }
 
+    /// Set the status item's title, nudged down onto the glyph's centre line.
+    ///
+    /// A menu bar title of digits, a percent sign and a currency amount has no
+    /// descender, so its ink fills only the upper part of the font box that AppKit
+    /// centres - measured at rows 5…15 of a 22pt button, a centre of 10.0. An icon
+    /// placed the way macOS places icons sits at 11.0. The gap is what reads as the
+    /// text floating above the glyph.
+    ///
+    /// Corrected on the text rather than the icon, deliberately. Raising the icon
+    /// to meet the text puts it out of line with every other item in the bar, which
+    /// is a worse fault and the one that three earlier attempts introduced.
+    ///
+    /// No foreground colour is set, so the button keeps tinting the title itself -
+    /// including the inversion while the item is held down.
+    private func setTitle(_ text: String) {
+        guard let button = statusItem.button else { return }
+        guard !text.isEmpty else {
+            button.attributedTitle = NSAttributedString(string: "")
+            return
+        }
+        button.attributedTitle = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.menuBarFont(ofSize: 0),
+                .baselineOffset: MenuBarIcon.titleBaselineOffset,
+            ]
+        )
+    }
+
     /// Re-read the payload the engine wrote. Cheap; runs on the poll timer.
     private func reload() {
         DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -132,7 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.model.snapshot = fresh
-                self.statusItem.button?.title = fresh.menuBarTitle
+                self.setTitle(fresh.menuBarTitle)
                 // New data changes the content's height. Without this the popover
                 // keeps whatever size it had when it opened, which is how it ends
                 // up cut off mid-section.
@@ -280,7 +309,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let raw = sender.representedObject as? String,
               let style = MenuBarStyle(rawValue: raw) else { return }
         Preferences.menuBarStyle = style
-        statusItem.button?.title = model.snapshot.menuBarTitle
+        setTitle(model.snapshot.menuBarTitle)
     }
 
     @objc private func toggleLaunchAtLogin() {
@@ -334,7 +363,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 Preferences.menuBarStyle = style
                 let title = self.model.snapshot.menuBarTitle(style: style)
-                self.statusItem.button?.title = title
+                self.setTitle(title)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     let button = self.statusItem.button
                     let frame = button?.window?.frame ?? .zero
@@ -362,7 +391,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // build reported 0.008pt one run and 0.066pt the next.
         timer?.invalidate()
         timer = nil
-        statusItem.button?.title = "20%"
+        setTitle("20%")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             guard let button = self.statusItem.button else { exit(1) }
             button.layoutSubtreeIfNeeded()
@@ -446,6 +475,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print(String(format: "  text  rows %d…%d  centroid %.3f", t.lo, t.hi, t.centre))
             }
             if let g = glyph, let t = text {
+                // Bounding-box centres are the criterion, not centroids: the two
+                // shapes distribute their mass differently, so their centroids
+                // never coincide even when they look level.
+                let gBox = (Double(g.lo) + Double(g.hi)) / 2
+                let tBox = (Double(t.lo) + Double(t.hi)) / 2
+                print(String(format: "  box centres: glyph %.2f  text %.2f  (delta %.2f px)",
+                             gBox, tBox, gBox - tBox))
                 let delta = g.centre - t.centre
                 print(String(format: "  glyph is %.3f px (%.3f pt) %@ the text",
                              abs(delta), abs(delta) / Double(scale),
@@ -603,7 +639,25 @@ if CommandLine.arguments.contains("--check-layout") {
 if let i = CommandLine.arguments.firstIndex(of: "--preview-menubar-icon"),
    i + 1 < CommandLine.arguments.count {
     let path = CommandLine.arguments[i + 1]
+    // Touched first. This flag runs ahead of the app being created, and anything
+    // that asks AppKit for an image, a font or a symbol before then segfaults.
+    _ = NSApplication.shared
+
+    print("Apple's own SF Symbols, for reference — where they put the ink:")
+    for name in ["gauge.medium", "gauge.with.dots.needle.bottom.50percent",
+                 "speedometer", "flame.fill", "battery.75percent", "bolt.fill"] {
+        if let sym = MenuBarIcon.symbolInk(name) {
+            // %@ and not %s: String(format:) with %s takes a C string, and handing
+            // it a Swift String is undefined - which is its own way of crashing.
+            print(String(format: "  %@  ink y %.3f…%.3f  h %.3f  centre %.3f",
+                         name.padding(toLength: 40, withPad: " ", startingAt: 0),
+                         sym.minY, sym.maxY, sym.height, (sym.minY + sym.maxY) / 2))
+        }
+    }
     let ok = MenuBarIcon.writePreview(to: path)
+    let r = MenuBarIcon.rawInk
+    print(String(format: "raw drawing ink: x %.3f…%.3f  y %.3f…%.3f", r.minX, r.maxX, r.minY, r.maxY))
+    print("image size: \(MenuBarIcon.image.size)")
     if let b = MenuBarIcon.inkBounds() {
         let w = b.maxX - b.minX, h = b.maxY - b.minY
         print(String(format: "ink  x %.3f…%.3f (w %.3f)   y %.3f…%.3f (h %.3f)",
