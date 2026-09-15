@@ -32,6 +32,14 @@ without provenance is the thing this project exists to avoid.
   both callers use; the duplication was what let them drift.
 - The menu bar's `·` between percentage and spend read as a stray full stop at
   that size. Replaced with a wider gap, which is also narrower than `" · "` was.
+- **The menu bar glyph sat low against the number beside it.** The dial's lower
+  ends reach further below its centre than the apex reaches above, so the shape
+  drawn from those proportions was not centred in its own box — measured margins
+  of 0.117 at the bottom against 0.201 at the top, putting the ink's centre at
+  0.458. AppKit centres an image's *frame*, not what is drawn inside it, so that
+  margin became a visible drop. `--check-layout` now measures the rendered ink and
+  fails if its centre moves off 0.500, and `--preview-menubar-icon` prints the
+  margins, so this is checked rather than eyeballed.
 - **The rate-limit rows hid the one thing needed to read them.** A quota's age was
   shown only once the reading had aged past its sampling interval, and the note
   explaining that Claude records these about every 15 minutes was suppressed on

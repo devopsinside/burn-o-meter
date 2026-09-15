@@ -103,6 +103,29 @@ enum LayoutCheck {
         // dangerous direction for a check whose whole job is "does this still fit".
         let glyph: CGFloat = 34
 
+        // The glyph has to be centred on its own ink, not on its frame. AppKit
+        // centres the frame, so dead margin inside it reads as the icon sitting
+        // low beside the number - which is exactly what it did: margins of 0.117
+        // at the bottom against 0.201 at the top, ink centred at 0.458.
+        if let ink = MenuBarIcon.inkBounds() {
+            let centreY = (ink.minY + ink.maxY) / 2
+            let centreX = (ink.minX + ink.maxX) / 2
+            let tolerance = 0.01
+            for (axis, value) in [("vertically", centreY), ("horizontally", centreX)] {
+                let off = abs(value - 0.5)
+                if off <= tolerance {
+                    print(String(format: "  ✓ glyph ink is centred %@ (%.3f)", axis, value))
+                } else {
+                    failures.append("glyph ink off-centre \(axis)")
+                    print(String(format: "  ✗ glyph ink sits at %.3f %@, wanted 0.500 ± %.2f",
+                                 value, axis, tolerance))
+                }
+            }
+        } else {
+            failures.append("glyph ink could not be measured")
+            print("  ✗ glyph ink could not be measured")
+        }
+
         var widths: [MenuBarStyle: CGFloat] = [:]
         for style in MenuBarStyle.allCases {
             let title = sample.menuBarTitle(style: style)

@@ -492,6 +492,15 @@ if let i = CommandLine.arguments.firstIndex(of: "--preview-menubar-icon"),
    i + 1 < CommandLine.arguments.count {
     let path = CommandLine.arguments[i + 1]
     let ok = MenuBarIcon.writePreview(to: path)
+    if let b = MenuBarIcon.inkBounds() {
+        let w = b.maxX - b.minX, h = b.maxY - b.minY
+        print(String(format: "ink  x %.3f…%.3f (w %.3f)   y %.3f…%.3f (h %.3f)",
+                     b.minX, b.maxX, w, b.minY, b.maxY, h))
+        print(String(format: "     margins: left %.3f right %.3f  bottom %.3f top %.3f",
+                     b.minX, 1 - b.maxX, b.minY, 1 - b.maxY))
+        print(String(format: "     ink centre y %.3f (0.500 is the frame's)",
+                     (b.minY + b.maxY) / 2))
+    }
     print(ok ? "wrote \(path)" : "failed to write \(path)")
     exit(ok ? 0 : 1)
 }
