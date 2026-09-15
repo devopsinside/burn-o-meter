@@ -101,17 +101,31 @@ enum LayoutCheck {
         // whatever padding NSStatusBarButton adds around it. Computing it as
         // `height + 4` gave 22pt and understated every style by 12pt, which is the
         // dangerous direction for a check whose whole job is "does this still fit".
-        let glyph: CGFloat = 34
+        let glyph: CGFloat = MenuBarIcon.image.size.width + 16
 
-        // Where the glyph's ink sits inside its own box. Horizontally that is the
-        // middle; vertically it is deliberately a little above it, because the text
-        // it sits beside has no descender and so rides high in the font box AppKit
-        // centres. See MenuBarIcon.inkLift - the target came from measuring the
-        // real button with --probe-alignment, not from reasoning about metrics.
+        // The glyph has to sit in its image the way Apple's own symbols sit in
+        // theirs, because every other item in the bar is placed that way. Measured
+        // from SF Symbols at the menu bar font's size: ink centred at 0.498-0.506,
+        // filling ~0.90 of the box. Ours previously filled 0.68 and, after being
+        // tuned against its own adjacent text rather than against the bar, sat at
+        // 0.541 - which is how it came to stand out of line with its neighbours.
+        // Apple's own symbols, measured on the machine running this, so the target
+        // is theirs rather than a number someone liked the look of.
+        for name in ["gauge.medium", "speedometer", "flame.fill"] {
+            if let sym = MenuBarIcon.symbolInk(name) {
+                let centre = (sym.minY + sym.maxY) / 2
+                if abs(centre - MenuBarIcon.targetInkCentre) > 0.02 {
+                    failures.append("SF Symbol \(name) centres ink at \(centre)")
+                    print(String(format: "  ✗ %@ centres ink at %.3f, not %.3f - the target is stale",
+                                 name, centre, MenuBarIcon.targetInkCentre))
+                }
+            }
+        }
+
         if let ink = MenuBarIcon.inkBounds() {
             let checks: [(String, Double, Double)] = [
                 ("horizontally", (ink.minX + ink.maxX) / 2, 0.5),
-                ("vertically", (ink.minY + ink.maxY) / 2, MenuBarIcon.expectedInkCentreY),
+                ("vertically", (ink.minY + ink.maxY) / 2, MenuBarIcon.targetInkCentre),
             ]
             let tolerance = 0.01
             for (axis, value, want) in checks {
