@@ -103,22 +103,24 @@ enum LayoutCheck {
         // dangerous direction for a check whose whole job is "does this still fit".
         let glyph: CGFloat = 34
 
-        // The glyph has to be centred on its own ink, not on its frame. AppKit
-        // centres the frame, so dead margin inside it reads as the icon sitting
-        // low beside the number - which is exactly what it did: margins of 0.117
-        // at the bottom against 0.201 at the top, ink centred at 0.458.
+        // Where the glyph's ink sits inside its own box. Horizontally that is the
+        // middle; vertically it is deliberately a little above it, because the text
+        // it sits beside has no descender and so rides high in the font box AppKit
+        // centres. See MenuBarIcon.inkLift - the target came from measuring the
+        // real button with --probe-alignment, not from reasoning about metrics.
         if let ink = MenuBarIcon.inkBounds() {
-            let centreY = (ink.minY + ink.maxY) / 2
-            let centreX = (ink.minX + ink.maxX) / 2
+            let checks: [(String, Double, Double)] = [
+                ("horizontally", (ink.minX + ink.maxX) / 2, 0.5),
+                ("vertically", (ink.minY + ink.maxY) / 2, MenuBarIcon.expectedInkCentreY),
+            ]
             let tolerance = 0.01
-            for (axis, value) in [("vertically", centreY), ("horizontally", centreX)] {
-                let off = abs(value - 0.5)
-                if off <= tolerance {
-                    print(String(format: "  ✓ glyph ink is centred %@ (%.3f)", axis, value))
+            for (axis, value, want) in checks {
+                if abs(value - want) <= tolerance {
+                    print(String(format: "  ✓ glyph ink sits %@ at %.3f", axis, value))
                 } else {
-                    failures.append("glyph ink off-centre \(axis)")
-                    print(String(format: "  ✗ glyph ink sits at %.3f %@, wanted 0.500 ± %.2f",
-                                 value, axis, tolerance))
+                    failures.append("glyph ink off-target \(axis)")
+                    print(String(format: "  ✗ glyph ink sits %@ at %.3f, wanted %.3f ± %.2f",
+                                 axis, value, want, tolerance))
                 }
             }
         } else {
