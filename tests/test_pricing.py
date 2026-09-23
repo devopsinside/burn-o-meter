@@ -308,7 +308,6 @@ def test_refresh_targets_the_user_directory_not_the_package(burn_home) -> None:
 
 
 def test_a_refreshed_snapshot_takes_precedence(burn_home, monkeypatch) -> None:
-    import json as _json
 
     from burnometer.pricing.catalog import (
         active_snapshot_path,
@@ -320,7 +319,7 @@ def test_a_refreshed_snapshot_takes_precedence(burn_home, monkeypatch) -> None:
 
     class FakeResponse:
         def read(self):
-            return _json.dumps(payload).encode()
+            return json.dumps(payload).encode()
 
         def __enter__(self):
             return self
@@ -339,14 +338,13 @@ def test_a_refreshed_snapshot_takes_precedence(burn_home, monkeypatch) -> None:
 
 
 def test_refreshed_snapshot_is_owner_only(burn_home, monkeypatch) -> None:
-    import json as _json
     import stat as stat_module
 
     from burnometer.pricing.catalog import refresh_snapshot, user_snapshot_path
 
     class FakeResponse:
         def read(self):
-            return _json.dumps(plausible()).encode()
+            return json.dumps(plausible()).encode()
 
         def __enter__(self):
             return self
@@ -494,7 +492,6 @@ def test_the_packaged_snapshot_covers_every_vendor_it_claims_to() -> None:
     install could not price Kimi, GLM or Qwen at all. Nothing failed, because
     every test that touched the catalog ran on a machine with a refreshed copy.
     """
-    import json
 
     from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT, DEFAULT_VENDORS
 
@@ -535,7 +532,6 @@ def test_the_documented_model_count_matches_what_ships() -> None:
     The number came from a refreshed copy on the author's machine, so it was
     true where it was written and false for every reader.
     """
-    import json
     import re
     from pathlib import Path
 
@@ -553,12 +549,11 @@ def test_the_documented_model_count_matches_what_ships() -> None:
 
 
 def _fake_upstream(monkeypatch, payload: dict) -> None:
-    import json as _json
     import urllib.request
 
     class FakeResponse:
         def read(self):
-            return _json.dumps(payload).encode()
+            return json.dumps(payload).encode()
 
         def __enter__(self):
             return self
@@ -610,7 +605,6 @@ def test_an_already_written_empty_snapshot_does_not_shadow_the_packaged_one(
     A user who refreshed before the guard existed still has the bad file, so
     precedence has to be earned on every read rather than granted by existence.
     """
-    import json as _json
 
     from burnometer.pricing.catalog import (
         _PACKAGED_SNAPSHOT,
@@ -620,7 +614,7 @@ def test_an_already_written_empty_snapshot_does_not_shadow_the_packaged_one(
 
     path = user_snapshot_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_json.dumps({"generated_at": "2026-09-14T22:00:43+00:00", "models": {}}))
+    path.write_text(json.dumps({"generated_at": "2026-09-14T22:00:43+00:00", "models": {}}))
 
     assert active_snapshot_path() == _PACKAGED_SNAPSHOT
     assert load_catalog().get("claude-opus-5") is not None, (
@@ -816,7 +810,6 @@ def test_a_retained_rate_keeps_its_original_date(burn_home, monkeypatch) -> None
     same day, so a version that overwrote the date with today's would pass - a
     test that cannot fail, which is how this one was first written.
     """
-    import json as _json
 
     from burnometer.pricing.catalog import refresh_snapshot, user_snapshot_path
 
@@ -830,7 +823,7 @@ def test_a_retained_rate_keeps_its_original_date(burn_home, monkeypatch) -> None
     }
     path = user_snapshot_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_json.dumps({"generated_at": "2026-01-01T00:00:00+00:00", "models": previous}))
+    path.write_text(json.dumps({"generated_at": "2026-01-01T00:00:00+00:00", "models": previous}))
 
     _fake_upstream(monkeypatch, plausible())
     snapshot = refresh_snapshot()
@@ -902,7 +895,6 @@ def test_the_newer_snapshot_wins(burn_home, generated_at: str, wins: str) -> Non
     `pricing refresh`: its older file, lacking the model, kept shadowing the new
     one. Found on the machine this was being fixed on.
     """
-    import json as _json
 
     from burnometer.pricing.catalog import (
         _PACKAGED_SNAPSHOT,
@@ -913,7 +905,7 @@ def test_the_newer_snapshot_wins(burn_home, generated_at: str, wins: str) -> Non
     models = {f"m{i}": {"vendor": "anthropic", "input": 1.0, "output": 1.0} for i in range(60)}
     path = user_snapshot_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_json.dumps({"generated_at": generated_at, "models": models}))
+    path.write_text(json.dumps({"generated_at": generated_at, "models": models}))
 
     expected = _PACKAGED_SNAPSHOT if wins == "packaged" else path
     assert active_snapshot_path() == expected
@@ -926,11 +918,10 @@ def test_a_refresh_never_prices_less_than_the_install_it_replaces(burn_home, mon
     refresh predated a model the packaged snapshot kept ended up without it - and
     because the newer snapshot wins, that refresh priced less than the install did.
     """
-    import json as _json
 
     from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT, refresh_snapshot
 
-    shipped = set(_json.loads(_PACKAGED_SNAPSHOT.read_text())["models"])
+    shipped = set(json.loads(_PACKAGED_SNAPSHOT.read_text())["models"])
     _fake_upstream(monkeypatch, plausible())  # a response carrying none of them
     refreshed = set(refresh_snapshot(vendors=None)["models"])
 
