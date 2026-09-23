@@ -103,7 +103,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6
+      # v8 errors on a digest mismatch instead of warning, and no longer unzips a
+      # download that is not a zip. The artifacts here are multi-file uploads, which
+      # are always zipped, so the second does not apply - verified by running this
+      # workflow against v8 before it merged, since pull-request CI never runs it.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           pattern: bottle-*
           merge-multiple: true
