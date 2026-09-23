@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-08-29T07:35:15+00:00",
+ "generated_at": "2026-09-23T14:05:13+00:00",
  "source": "https://models.dev/api.json",
  "source_license": "MIT",
  "source_repo": "https://github.com/anomalyco/models.dev",
@@ -7,9 +7,23 @@
  "models": {
   "accounts/fireworks/models/deepseek-v4-flash-0731": {
    "vendor": "fireworks-ai",
-   "input": 0.14,
-   "output": 0.28,
-   "cache_read": 0.028,
+   "input": 0.22,
+   "output": 0.66,
+   "cache_read": 0.007,
+   "context_limit": 1000000
+  },
+  "accounts/fireworks/models/deepseek-v4-flash-vision-exp": {
+   "vendor": "fireworks-ai",
+   "input": 0.22,
+   "output": 0.66,
+   "cache_read": 0.007,
+   "context_limit": 1000000
+  },
+  "accounts/fireworks/models/deepseek-v4-pro": {
+   "vendor": "fireworks-ai",
+   "input": 1.2,
+   "output": 1.2,
+   "cache_read": 0.6,
    "context_limit": 1000000
   },
   "accounts/fireworks/models/deepseek-v4-pro-0813": {
@@ -17,6 +31,13 @@
    "input": 1.32,
    "output": 3.96,
    "cache_read": 0.044,
+   "context_limit": 1000000
+  },
+  "accounts/fireworks/models/deepseek-v4p1-flash": {
+   "vendor": "fireworks-ai",
+   "input": 0.22,
+   "output": 0.66,
+   "cache_read": 0.007,
    "context_limit": 1000000
   },
   "accounts/fireworks/models/glm-5p2": {
@@ -31,7 +52,14 @@
    "input": 1.4,
    "output": 4.4,
    "cache_read": 0.26,
-   "context_limit": 1000000
+   "context_limit": 1048573
+  },
+  "accounts/fireworks/models/glm-5p3-flash": {
+   "vendor": "fireworks-ai",
+   "input": 0.15,
+   "output": 0.5,
+   "cache_read": 0.03,
+   "context_limit": 1048573
   },
   "accounts/fireworks/models/gpt-oss-120b": {
    "vendor": "fireworks-ai",
@@ -68,6 +96,13 @@
    "cache_read": 0.3,
    "context_limit": 1048576
   },
+  "accounts/fireworks/models/minimax-m2p7": {
+   "vendor": "fireworks-ai",
+   "input": 1.2,
+   "output": 1.2,
+   "cache_read": 0.6,
+   "context_limit": 196608
+  },
   "accounts/fireworks/models/minimax-m3": {
    "vendor": "fireworks-ai",
    "input": 0.3,
@@ -86,7 +121,7 @@
    "vendor": "fireworks-ai",
    "input": 0.6,
    "output": 2.4,
-   "cache_read": 0.119,
+   "cache_read": 0.12,
    "context_limit": 262144
   },
   "accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b": {
@@ -103,12 +138,33 @@
    "cache_read": 0.08,
    "context_limit": 262144
   },
+  "accounts/fireworks/models/qwen3p8-2p4t-a95b": {
+   "vendor": "fireworks-ai",
+   "input": 2,
+   "output": 6,
+   "cache_read": 0.25,
+   "context_limit": 262144
+  },
   "accounts/fireworks/models/qwen3p8-max": {
    "vendor": "fireworks-ai",
    "input": 2,
    "output": 6,
    "cache_read": 0.25,
    "context_limit": 262144
+  },
+  "accounts/fireworks/routers/deepseek-flash-latest": {
+   "vendor": "fireworks-ai",
+   "input": 0.22,
+   "output": 0.66,
+   "cache_read": 0.007,
+   "context_limit": 1000000
+  },
+  "accounts/fireworks/routers/deepseek-pro-latest": {
+   "vendor": "fireworks-ai",
+   "input": 1.32,
+   "output": 3.96,
+   "cache_read": 0.044,
+   "context_limit": 1000000
   },
   "accounts/fireworks/routers/glm-5p2-fast": {
    "vendor": "fireworks-ai",
@@ -117,12 +173,68 @@
    "cache_read": 0.21,
    "context_limit": 1048575
   },
+  "accounts/fireworks/routers/glm-5p3-fast": {
+   "vendor": "fireworks-ai",
+   "input": 2.1,
+   "output": 6.6,
+   "cache_read": 0.39,
+   "context_limit": 1048572
+  },
+  "accounts/fireworks/routers/glm-fast-latest": {
+   "vendor": "fireworks-ai",
+   "input": 2.1,
+   "output": 6.6,
+   "cache_read": 0.39,
+   "context_limit": 1048572
+  },
+  "accounts/fireworks/routers/glm-flash-latest": {
+   "vendor": "fireworks-ai",
+   "input": 0.15,
+   "output": 0.5,
+   "cache_read": 0.03,
+   "context_limit": 1048573
+  },
+  "accounts/fireworks/routers/glm-latest": {
+   "vendor": "fireworks-ai",
+   "input": 1.4,
+   "output": 4.4,
+   "cache_read": 0.26,
+   "context_limit": 1048573
+  },
+  "accounts/fireworks/routers/kimi-fast-latest": {
+   "vendor": "fireworks-ai",
+   "input": 4.5,
+   "output": 22.5,
+   "cache_read": 0.45,
+   "context_limit": 1048576
+  },
   "accounts/fireworks/routers/kimi-k3-fast": {
    "vendor": "fireworks-ai",
    "input": 4.5,
    "output": 22.5,
    "cache_read": 0.45,
    "context_limit": 1048576
+  },
+  "accounts/fireworks/routers/kimi-latest": {
+   "vendor": "fireworks-ai",
+   "input": 3,
+   "output": 15,
+   "cache_read": 0.3,
+   "context_limit": 1048576
+  },
+  "accounts/fireworks/routers/minimax-latest": {
+   "vendor": "fireworks-ai",
+   "input": 0.3,
+   "output": 1.2,
+   "cache_read": 0.06,
+   "context_limit": 512000
+  },
+  "accounts/fireworks/routers/qwen-max-latest": {
+   "vendor": "fireworks-ai",
+   "input": 2,
+   "output": 6,
+   "cache_read": 0.25,
+   "context_limit": 262144
   },
   "allam-2-7b": {
    "vendor": "groq",
@@ -135,6 +247,14 @@
    "input": 10,
    "output": 50,
    "cache_read": 1,
+   "cache_write_5m": 12.5,
+   "context_limit": 1000000
+  },
+  "claude-fable-5-1": {
+   "vendor": "anthropic",
+   "input": 10,
+   "output": 50,
+   "cache_read": 0.25,
    "cache_write_5m": 12.5,
    "context_limit": 1000000
   },
@@ -200,6 +320,14 @@
    "output": 25,
    "cache_read": 0.5,
    "cache_write_5m": 6.25,
+   "context_limit": 1000000
+  },
+  "claude-opus-5-5": {
+   "vendor": "anthropic",
+   "input": 4,
+   "output": 20,
+   "cache_read": 0.2,
+   "cache_write_5m": 5,
    "context_limit": 1000000
   },
   "claude-sonnet-4-5": {
@@ -313,11 +441,25 @@
    "cache_read": 0.13,
    "context_limit": 1048576
   },
+  "deepseek-ai/deepseek-v4.1-flash": {
+   "vendor": "togetherai",
+   "input": 0.3,
+   "output": 1.2,
+   "cache_read": 0.006,
+   "context_limit": 1048576
+  },
+  "deepseek-flash": {
+   "vendor": "deepseek",
+   "input": 0.15,
+   "output": 0.6,
+   "cache_read": 0.003,
+   "context_limit": 1000000
+  },
   "deepseek-v4-flash": {
    "vendor": "deepseek",
-   "input": 0.14,
-   "output": 0.28,
-   "cache_read": 0.0028,
+   "input": 0.15,
+   "output": 0.6,
+   "cache_read": 0.003,
    "context_limit": 1000000
   },
   "deepseek-v4-flash-0731": {
@@ -329,10 +471,17 @@
   },
   "deepseek-v4-flash-vision-exp": {
    "vendor": "deepseek",
-   "input": 0.14,
-   "output": 0.28,
-   "cache_read": 0.0028,
+   "input": 0.15,
+   "output": 0.6,
+   "cache_read": 0.003,
    "context_limit": 1000000
+  },
+  "deepseek-v4-flash:0731": {
+   "vendor": "ollama-cloud",
+   "input": 0.22,
+   "output": 0.66,
+   "cache_read": 0.007,
+   "context_limit": 1048576
   },
   "deepseek-v4-pro": {
    "vendor": "deepseek",
@@ -340,6 +489,20 @@
    "output": 0.87,
    "cache_read": 0.003625,
    "context_limit": 1000000
+  },
+  "deepseek-v4-pro:0813": {
+   "vendor": "ollama-cloud",
+   "input": 0.66,
+   "output": 1.98,
+   "cache_read": 0.022,
+   "context_limit": 1048576
+  },
+  "deepseek-v4.1-flash": {
+   "vendor": "ollama-cloud",
+   "input": 0.15,
+   "output": 0.6,
+   "cache_read": 0.003,
+   "context_limit": 1048576
   },
   "devstral-2512": {
    "vendor": "mistral",
@@ -568,6 +731,13 @@
    "cache_read": 0.075,
    "context_limit": 1048576
   },
+  "gemini-3.8-flash": {
+   "vendor": "google",
+   "input": 0.75,
+   "output": 3.75,
+   "cache_read": 0.075,
+   "context_limit": 1048576
+  },
   "gemini-embedding-001": {
    "vendor": "google",
    "input": 0.15,
@@ -604,13 +774,22 @@
    "vendor": "google",
    "input": 1,
    "output": 5,
-   "context_limit": 131072
+   "context_limit": 131072,
+   "retained_since": "2026-09-23"
   },
   "gemma-4-31b": {
    "vendor": "cerebras",
    "input": 0.99,
    "output": 1.49,
-   "context_limit": 131072
+   "context_limit": 131072,
+   "retained_since": "2026-09-23"
+  },
+  "gemma4:31b": {
+   "vendor": "ollama-cloud",
+   "input": 0.14,
+   "output": 0.4,
+   "cache_read": 0.05,
+   "context_limit": 262144
   },
   "glm-4.5": {
    "vendor": "zhipuai",
@@ -654,6 +833,14 @@
    "vendor": "zhipuai",
    "input": 0.3,
    "output": 0.9,
+   "context_limit": 128000
+  },
+  "glm-4.6v-flash": {
+   "vendor": "zhipuai",
+   "input": 0,
+   "output": 0,
+   "cache_read": 0,
+   "cache_write_5m": 0,
    "context_limit": 128000
   },
   "glm-4.7": {
@@ -714,9 +901,17 @@
   },
   "glm-5.3-flash": {
    "vendor": "zhipuai",
-   "input": 0.075,
-   "output": 0.25,
-   "cache_read": 0.015,
+   "input": 0.15,
+   "output": 0.5,
+   "cache_read": 0.03,
+   "cache_write_5m": 0,
+   "context_limit": 1000000
+  },
+  "glm-5.3-flashx": {
+   "vendor": "zhipuai",
+   "input": 0.37,
+   "output": 1.25,
+   "cache_read": 0.075,
    "cache_write_5m": 0,
    "context_limit": 1000000
   },
@@ -1017,6 +1212,51 @@
    },
    "context_limit": 1050000
   },
+  "gpt-6-astra": {
+   "vendor": "openai",
+   "input": 10,
+   "output": 50,
+   "cache_read": 1,
+   "cache_write_5m": 12.5,
+   "tier_threshold": 272000,
+   "tier": {
+    "input": 20,
+    "output": 75,
+    "cache_read": 2,
+    "cache_write_5m": 25
+   },
+   "context_limit": 1050000
+  },
+  "gpt-6-luna": {
+   "vendor": "openai",
+   "input": 0.1,
+   "output": 0.5,
+   "cache_read": 0.01,
+   "cache_write_5m": 0.125,
+   "tier_threshold": 272000,
+   "tier": {
+    "input": 0.2,
+    "output": 0.75,
+    "cache_read": 0.02,
+    "cache_write_5m": 0.25
+   },
+   "context_limit": 1050000
+  },
+  "gpt-6-sol": {
+   "vendor": "openai",
+   "input": 2,
+   "output": 10,
+   "cache_read": 0.2,
+   "cache_write_5m": 2.5,
+   "tier_threshold": 272000,
+   "tier": {
+    "input": 4,
+    "output": 15,
+    "cache_read": 0.4,
+    "cache_write_5m": 5
+   },
+   "context_limit": 1050000
+  },
   "gpt-image-2": {
    "vendor": "openai",
    "input": 5,
@@ -1027,6 +1267,20 @@
    "vendor": "cerebras",
    "input": 0.35,
    "output": 0.75,
+   "context_limit": 131072
+  },
+  "gpt-oss:120b": {
+   "vendor": "ollama-cloud",
+   "input": 0.15,
+   "output": 0.6,
+   "cache_read": 0.014,
+   "context_limit": 131072
+  },
+  "gpt-oss:20b": {
+   "vendor": "ollama-cloud",
+   "input": 0.07,
+   "output": 0.3,
+   "cache_read": 0.035,
    "context_limit": 131072
   },
   "gpt-realtime-2.1": {
@@ -1120,6 +1374,20 @@
    },
    "context_limit": 500000
   },
+  "grok-4.7": {
+   "vendor": "xai",
+   "input": 2,
+   "output": 6,
+   "cache_read": 0.5,
+   "tier_threshold": 200000,
+   "tier": {
+    "input": 4,
+    "output": 12,
+    "cache_read": 1,
+    "cache_write_5m": 0.0
+   },
+   "context_limit": 500000
+  },
   "grok-build-0.1": {
    "vendor": "xai",
    "input": 1,
@@ -1140,7 +1408,8 @@
    "output": 0,
    "cache_read": 0,
    "cache_write_5m": 0,
-   "context_limit": 1048576
+   "context_limit": 1048576,
+   "retained_since": "2026-09-23"
   },
   "k3-256k": {
    "vendor": "kimi-for-coding",
@@ -1148,7 +1417,8 @@
    "output": 0,
    "cache_read": 0,
    "cache_write_5m": 0,
-   "context_limit": 262144
+   "context_limit": 262144,
+   "retained_since": "2026-09-23"
   },
   "kimi-for-coding": {
    "vendor": "kimi-for-coding",
@@ -1156,7 +1426,8 @@
    "output": 0,
    "cache_read": 0,
    "cache_write_5m": 0,
-   "context_limit": 262144
+   "context_limit": 262144,
+   "retained_since": "2026-09-23"
   },
   "kimi-for-coding-highspeed": {
    "vendor": "kimi-for-coding",
@@ -1164,49 +1435,56 @@
    "output": 0,
    "cache_read": 0,
    "cache_write_5m": 0,
-   "context_limit": 262144
+   "context_limit": 262144,
+   "retained_since": "2026-09-23"
   },
   "kimi-k2-0711-preview": {
    "vendor": "moonshotai",
    "input": 0.6,
    "output": 2.5,
    "cache_read": 0.15,
-   "context_limit": 131072
+   "context_limit": 131072,
+   "retained_since": "2026-09-23"
   },
   "kimi-k2-0905-preview": {
    "vendor": "moonshotai",
    "input": 0.6,
    "output": 2.5,
    "cache_read": 0.15,
-   "context_limit": 262144
+   "context_limit": 262144,
+   "retained_since": "2026-09-23"
   },
   "kimi-k2-thinking": {
    "vendor": "moonshotai",
    "input": 0.6,
    "output": 2.5,
    "cache_read": 0.15,
-   "context_limit": 262144
+   "context_limit": 262144,
+   "retained_since": "2026-09-23"
   },
   "kimi-k2-thinking-turbo": {
    "vendor": "moonshotai",
    "input": 1.15,
    "output": 8,
    "cache_read": 0.15,
-   "context_limit": 262144
+   "context_limit": 262144,
+   "retained_since": "2026-09-23"
   },
   "kimi-k2-turbo-preview": {
    "vendor": "moonshotai",
    "input": 2.4,
    "output": 10,
    "cache_read": 0.6,
-   "context_limit": 262144
+   "context_limit": 262144,
+   "retained_since": "2026-09-23"
   },
   "kimi-k2.5": {
    "vendor": "moonshotai",
    "input": 0.6,
    "output": 3,
    "cache_read": 0.1,
-   "context_limit": 262144
+   "context_limit": 262144,
+   "retained_since": "2026-09-23"
   },
   "kimi-k2.6": {
    "vendor": "moonshotai",
@@ -1419,6 +1697,12 @@
    "output": 1.5,
    "context_limit": 262144
   },
+  "mistral-large-3:675b": {
+   "vendor": "ollama-cloud",
+   "input": 0.5,
+   "output": 1.5,
+   "context_limit": 262144
+  },
   "mistral-large-latest": {
    "vendor": "mistral",
    "input": 0.5,
@@ -1500,6 +1784,26 @@
    "cache_read": 0.3,
    "context_limit": 1048576
   },
+  "nemotron-3-nano:30b": {
+   "vendor": "ollama-cloud",
+   "input": 0.06,
+   "output": 0.24,
+   "context_limit": 1048576
+  },
+  "nemotron-3-super": {
+   "vendor": "ollama-cloud",
+   "input": 0.015,
+   "output": 0.6,
+   "cache_read": 0.015,
+   "context_limit": 262144
+  },
+  "nemotron-3-ultra": {
+   "vendor": "ollama-cloud",
+   "input": 0.1,
+   "output": 3,
+   "cache_read": 0.1,
+   "context_limit": 262144
+  },
   "nvidia/nemotron-3-ultra-550b-a55b": {
    "vendor": "togetherai",
    "input": 0.6,
@@ -1572,17 +1876,15 @@
    "context_limit": 32000
   },
   "openai/gpt-oss-120b": {
-   "vendor": "groq",
+   "vendor": "togetherai",
    "input": 0.15,
    "output": 0.6,
-   "cache_read": 0.075,
    "context_limit": 131072
   },
   "openai/gpt-oss-20b": {
-   "vendor": "groq",
-   "input": 0.075,
-   "output": 0.3,
-   "cache_read": 0.0375,
+   "vendor": "lmstudio",
+   "input": 0,
+   "output": 0,
    "context_limit": 131072
   },
   "openai/gpt-oss-safeguard-20b": {
@@ -1614,6 +1916,12 @@
    "input": 1.2,
    "output": 4.8,
    "context_limit": 131072
+  },
+  "qwen-3.8-27b": {
+   "vendor": "cerebras",
+   "input": 0.99,
+   "output": 1.49,
+   "context_limit": 65536
   },
   "qwen-flash": {
    "vendor": "alibaba",
@@ -1755,6 +2063,12 @@
    "output": 3.75,
    "cache_read": 0.125,
    "context_limit": 1000000
+  },
+  "qwen/qwen3.8-27b": {
+   "vendor": "groq",
+   "input": 0.8,
+   "output": 4,
+   "context_limit": 131042
   },
   "qwen2-5-14b-instruct": {
    "vendor": "alibaba",
@@ -1936,6 +2250,12 @@
    "output": 2.4,
    "context_limit": 1000000
   },
+  "qwen3.5:397b": {
+   "vendor": "ollama-cloud",
+   "input": 0.6,
+   "output": 3.6,
+   "context_limit": 262144
+  },
   "qwen3.6-27b": {
    "vendor": "alibaba",
    "input": 0.6,
@@ -2061,6 +2381,13 @@
    "cache_read": 0.14,
    "context_limit": 1000000
   },
+  "zai-glm-5-3": {
+   "vendor": "mistral",
+   "input": 1.4,
+   "output": 4.4,
+   "cache_read": 0.14,
+   "context_limit": 1000000
+  },
   "zai-org/glm-5": {
    "vendor": "togetherai",
    "input": 1,
@@ -2081,6 +2408,13 @@
    "cache_read": 0.26,
    "context_limit": 512000
   },
+  "zai-org/glm-5.3": {
+   "vendor": "togetherai",
+   "input": 1.4,
+   "output": 4.4,
+   "cache_read": 0.26,
+   "context_limit": 1048576
+  },
   "zai-org/glm-5.3-flash": {
    "vendor": "togetherai",
    "input": 0.15,
@@ -2088,5 +2422,6 @@
    "cache_read": 0.03,
    "context_limit": 1048575
   }
- }
+ },
+ "retained_models": 12
 }

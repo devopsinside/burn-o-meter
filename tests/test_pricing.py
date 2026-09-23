@@ -521,7 +521,9 @@ def test_the_packaged_snapshot_can_price_a_model_from_every_agent_we_support() -
     for agent, slug in (
         ("Claude Code", "claude-opus-5"),
         ("Codex", "gpt-5.5"),
-        ("Kimi Code", "kimi-k2-turbo-preview"),
+        # A model Moonshot currently sells, not one kept by retention: this asserts
+        # that today's usage is priceable, which a retired slug cannot show.
+        ("Kimi Code", "kimi-k3"),
         ("OpenCode → GLM", "glm-4.6"),
     ):
         assert catalog.get(slug) is not None, f"{agent}: {slug} has no rate in the shipped snapshot"
@@ -759,3 +761,178 @@ def test_repricing_and_scanning_agree_on_every_stored_event(burn_home) -> None:
         after = {k: _basis_of(store, k) for k in at_scan}
 
     assert after == at_scan, f"reprice disagreed with scan: {after} != {at_scan}"
+
+
+def test_a_model_dropped_upstream_keeps_its_rate(burn_home, monkeypatch) -> None:
+    """Leaving the catalogue does not change what a model's tokens cost.
+
+    Moonshot retired its K2 generation and models.dev stopped listing ten models.
+    Dropping their rates would retroactively unprice history genuinely billed at
+    them - one `reprice` and every past turn becomes an em dash.
+    """
+    from burnometer.pricing.catalog import refresh_snapshot, user_snapshot_path
+
+    old = plausible(
+        {"kimi-k2-retired": {"cost": {"input": 0.6, "output": 2.5}}}, vendor="moonshotai"
+    )
+    _fake_upstream(monkeypatch, old)
+    refresh_snapshot(vendors=("moonshotai",))
+
+    new = plausible({"kimi-k3": {"cost": {"input": 3.0, "output": 15.0}}}, vendor="moonshotai")
+    _fake_upstream(monkeypatch, new)
+    snapshot = refresh_snapshot(vendors=("moonshotai",))
+
+    kept = snapshot["models"]["kimi-k2-retired"]
+    assert (kept["input"], kept["output"]) == (0.6, 2.5), "the last-known rate must survive"
+    assert "retained_since" in kept, "a retained rate must say it is one"
+    assert "retained_since" not in snapshot["models"]["kimi-k3"]
+    assert load_catalog(user_path=Path("/nonexistent")).get("kimi-k2-retired") is not None
+    assert user_snapshot_path().exists()
+
+
+def test_retention_cannot_mask_an_empty_response(burn_home, monkeypatch) -> None:
+    """The floor must count what upstream returned, before anything is retained.
+
+    Retaining first would let an empty response through by carrying the old file
+    forward - quietly defeating the guard that exists because an empty response
+    once unpriced every model on a real machine.
+    """
+    from burnometer.pricing.catalog import refresh_snapshot, user_snapshot_path
+
+    _fake_upstream(monkeypatch, plausible())
+    refresh_snapshot()
+    before = user_snapshot_path().read_bytes()
+
+    _fake_upstream(monkeypatch, {"anthropic": {"models": {}}})
+    with pytest.raises(ValueError, match="refusing to save"):
+        refresh_snapshot()
+    assert user_snapshot_path().read_bytes() == before
+
+
+def test_a_retained_rate_keeps_its_original_date(burn_home, monkeypatch) -> None:
+    """Refreshing again must not reset when a model was last seen upstream.
+
+    Seeded with an old date rather than refreshed twice: two refreshes run on the
+    same day, so a version that overwrote the date with today's would pass - a
+    test that cannot fail, which is how this one was first written.
+    """
+    import json as _json
+
+    from burnometer.pricing.catalog import refresh_snapshot, user_snapshot_path
+
+    seeded = plausible()["anthropic"]["models"]
+    previous = {slug: {"vendor": "anthropic", "input": 1.0, "output": 1.0} for slug in seeded}
+    previous["long-gone"] = {
+        "vendor": "anthropic",
+        "input": 1.0,
+        "output": 2.0,
+        "retained_since": "2026-01-01",
+    }
+    path = user_snapshot_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_json.dumps({"generated_at": "2026-01-01T00:00:00+00:00", "models": previous}))
+
+    _fake_upstream(monkeypatch, plausible())
+    snapshot = refresh_snapshot()
+    assert snapshot["models"]["long-gone"]["retained_since"] == "2026-01-01"
+
+
+def test_claude_cache_reads_use_a_published_multiplier() -> None:
+    """Cache reads are most of a Claude Code bill, and nothing else checks them.
+
+    A 97-99% cache-hit rate means the read rate dominates cost, yet the overlay
+    check covers only writes. Anthropic now publishes three read multipliers -
+    0.1x generally, 0.05x on Opus 5.5, 0.025x on Fable and Mythos 5.1 - so a rate
+    that matches none of them is a data error, not a new policy. Checked against
+    platform.claude.com/docs/en/about-claude/pricing on 2026-09-23.
+    """
+    from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT
+
+    published = (0.1, 0.05, 0.025)
+    catalog = load_catalog(snapshot_path=_PACKAGED_SNAPSHOT, user_path=Path("/nonexistent"))
+    checked = 0
+    for slug, price in catalog.prices.items():
+        if not slug.startswith("claude-") or not price.input or price.cache_read is None:
+            continue
+        ratio = price.cache_read / price.input
+        assert any(abs(ratio - m) < 1e-9 for m in published), (
+            f"{slug}: cache read {price.cache_read} is {ratio:.4f}x input {price.input}, "
+            f"which is none of Anthropic's published multipliers {published}"
+        )
+        checked += 1
+    assert checked >= 10, f"expected to check most Claude models, checked {checked}"
+
+
+def test_opus_5_5_is_priced_exactly_as_anthropic_publishes() -> None:
+    """The model this was fixed for, pinned to the figures verified on 2026-09-23.
+
+    It arrived unpriced - five turns on its first day showed as an em dash - and
+    its 0.05x cache-read rate looked enough like a data error that it was checked
+    against Anthropic's own page before being trusted.
+    """
+    from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT
+
+    p = load_catalog(snapshot_path=_PACKAGED_SNAPSHOT, user_path=Path("/nonexistent")).get(
+        "claude-opus-5-5"
+    )
+    assert p is not None, "claude-opus-5-5 has no rate in the shipped snapshot"
+    assert (p.input, p.cache_write_5m, p.cache_write_1h, p.cache_read, p.output) == (
+        4.0,
+        5.0,
+        8.0,
+        0.2,
+        20.0,
+    )
+
+
+@pytest.mark.parametrize(
+    ("generated_at", "wins"),
+    [
+        ("2020-01-01T00:00:00+00:00", "packaged"),
+        ("2099-01-01T00:00:00+00:00", "refreshed"),
+        ("not a timestamp", "refreshed"),
+    ],
+    ids=["older-refresh-loses", "newer-refresh-wins", "unreadable-date-keeps-old-rule"],
+)
+def test_the_newer_snapshot_wins(burn_home, generated_at: str, wins: str) -> None:
+    """An upgrade shipping fresher rates has to reach people who once refreshed.
+
+    A usable refreshed file used to win simply by existing, so a release adding
+    claude-opus-5-5 would have changed nothing on any machine that had run
+    `pricing refresh`: its older file, lacking the model, kept shadowing the new
+    one. Found on the machine this was being fixed on.
+    """
+    import json as _json
+
+    from burnometer.pricing.catalog import (
+        _PACKAGED_SNAPSHOT,
+        active_snapshot_path,
+        user_snapshot_path,
+    )
+
+    models = {f"m{i}": {"vendor": "anthropic", "input": 1.0, "output": 1.0} for i in range(60)}
+    path = user_snapshot_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_json.dumps({"generated_at": generated_at, "models": models}))
+
+    expected = _PACKAGED_SNAPSHOT if wins == "packaged" else path
+    assert active_snapshot_path() == expected
+
+
+def test_a_refresh_never_prices_less_than_the_install_it_replaces(burn_home, monkeypatch) -> None:
+    """A user's refresh must be a superset of the packaged snapshot.
+
+    Retention first drew only on the file being replaced, so a user whose earlier
+    refresh predated a model the packaged snapshot kept ended up without it - and
+    because the newer snapshot wins, that refresh priced less than the install did.
+    """
+    import json as _json
+
+    from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT, refresh_snapshot
+
+    shipped = set(_json.loads(_PACKAGED_SNAPSHOT.read_text())["models"])
+    _fake_upstream(monkeypatch, plausible())  # a response carrying none of them
+    refreshed = set(refresh_snapshot(vendors=None)["models"])
+
+    missing = shipped - refreshed
+    assert not missing, f"refreshing lost {len(missing)} packaged model(s): {sorted(missing)[:5]}"
