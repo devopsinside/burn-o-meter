@@ -76,13 +76,18 @@ differed for every single source so far — whether `reasoning_tokens` sits insi
 holds, and whether a row is written once per turn or repeated. Those get settled
 against real rows or not at all.
 
+**This is the easiest adapter to help with.** If you use Copilot CLI, the shape of a
+few `assistant_usage_events` rows is enough to write it — the numeric columns only,
+and never anything from `turns`, which holds your prompts. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 **Security, when it is written.** The same file holds `turns.user_message` and
 `turns.assistant_response`, `forge_trajectory_events.command` and `.output`, and
 an FTS5 `search_index` over the conversation — so this is the OpenCode situation
 again and needs the same column-level allowlist, touching only `sessions` and
-`assistant_usage_events`. The auth token goes to the system credential store, but
-`copilot login --help` states it falls back to a plaintext file under `~/.copilot/`
-when no store is available, so the deny-list has to cover that case too.
+`assistant_usage_events`. `copilot login --help` states the auth token goes to the
+system credential store and falls back to a plaintext file under `~/.copilot/` when
+none is available, so the deny-list has to cover that case too.
 
 ### 3. Budgets and alerts
 
