@@ -16,6 +16,16 @@ This page covers the cases that need more than that.
 
 Requires **Python 3.11+**. macOS 14+ for the menu bar app.
 
+Building the menu bar app needs **full Xcode** on macOS 27 and later — not just the
+Command Line Tools. SwiftUI's macros ship only with Xcode, and after an OS upgrade
+the Command Line Tools are often what is selected. `macos/make-app.sh` recognises
+that failure and prints the two commands that fix it:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app
+sudo xcodebuild -license accept
+```
+
 > **`brew`, `pipx` and `uv` install the command line tool only.** No app is created
 > and nothing appears in your menu bar until you build one — see
 > [the macOS menu bar app](#the-macos-menu-bar-app) below. `./install.sh` does both.

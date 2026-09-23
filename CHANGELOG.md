@@ -25,6 +25,9 @@ without provenance is the thing this project exists to avoid.
   which did no better. No rule can warn more than about fifteen minutes ahead,
   because Claude records usage only that often. See
   [docs/design-budgets-and-alerts.md](docs/design-budgets-and-alerts.md).
+- `macos/make-app.sh` recognises the failure you get building on macOS 27 with only
+  the Command Line Tools selected — SwiftUI's macros ship only with Xcode — and
+  prints the two commands that fix it, instead of a wall of compiler errors.
 
 ### Fixed
 
