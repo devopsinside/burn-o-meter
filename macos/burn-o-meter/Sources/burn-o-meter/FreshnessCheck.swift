@@ -137,6 +137,13 @@ enum FreshnessCheck {
               "menu bar \(String(describing: rgb(applied))) vs popover \(String(describing: rgb(popover)))")
         check("the spend keeps the button's own colour",
               spend == nil)
+        // Right on the edge, where rounding changes the answer. 90 and 89.4 classify
+        // the same way whether or not the value is rounded, so they cannot tell
+        // whether the popover rounds at all - reverting its rounding passed every
+        // other check here.
+        check("the popover classifies a reading shown as 90% as nearly exhausted",
+              Theme.quotaState(89.6).label == "nearly exhausted",
+              "89.6 was \"\(Theme.quotaState(89.6).label)\"")
         check("the popover and the menu bar agree on where the threshold is",
               Theme.quotaState(90).label == "nearly exhausted"
                   && Theme.quotaState(89.4).label == "getting full"
