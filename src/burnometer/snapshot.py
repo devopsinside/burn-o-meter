@@ -109,7 +109,6 @@ def _window_already_reset(resets_at: str | None, observed_at: str | None) -> boo
 
 def write_engine_pointer(path: Path | None = None) -> Path:
     """Record how to invoke this engine, so the menu bar can trigger a scan."""
-    import json as _json
     import sys
 
     target = path or engine_path()
@@ -123,7 +122,7 @@ def write_engine_pointer(path: Path | None = None) -> Path:
         argv = [str(candidate)] if candidate.exists() else [sys.executable, "-m", "burnometer"]
 
     with secure_open_write(target) as fh:
-        fh.write(_json.dumps({"argv": argv}, indent=1).encode("utf-8"))
+        fh.write(json.dumps({"argv": argv}, indent=1).encode("utf-8"))
     harden_path(target)
     return target
 
