@@ -8,6 +8,43 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Fixed
+
+- **Claude Opus 5.5 was unpriced.** Five turns on its first day showed as an em
+  dash, and every subsequent one would have. It is now priced exactly as Anthropic
+  publishes it — $4 input, $5 / $8 for 5-minute / 1-hour cache writes, $0.20 cache
+  reads, $20 output — as is Claude Fable 5.1. Opus 5.5's cache-read rate is 0.05×
+  input rather than the usual 0.1×, which looked enough like a data error that it
+  was checked against Anthropic's own page before being trusted. It is not one:
+  Anthropic states it in a footnote. All twelve current Claude models now match
+  that page exactly, cache reads included.
+- **An upgrade shipping fresher rates did not reach anyone who had ever refreshed.**
+  A usable refreshed snapshot won simply by existing, so a release adding a model
+  changed nothing on a machine that had run `pricing refresh`: its older file,
+  lacking the model, kept shadowing the new one. Found on the machine this was
+  fixed on, where it would have left Opus 5.5 unpriced after upgrading. The more
+  recently generated snapshot now wins.
+- **Regenerating the pricing snapshot would have unpriced retired models.**
+  Moonshot retired its K2 generation and models.dev stopped listing ten models. A
+  model leaving the catalogue does not change what its tokens cost while it was
+  sold, so dropping those rates would have retroactively unpriced history genuinely
+  billed at them. A refresh now keeps the rate of any model it no longer sees,
+  marked `retained_since`, and draws on both the file it replaces and the packaged
+  snapshot — so a refresh can never price less than the install it replaces. The
+  empty-response floor still counts only what upstream returned, before anything is
+  retained; retaining first would have let an empty response pass by carrying the
+  old file forward.
+
+### Added
+
+- A check that every Claude cache-read rate matches one of Anthropic's published
+  multipliers — 0.1×, 0.05× on Opus 5.5, 0.025× on Fable and Mythos 5.1. Cache reads
+  are most of a Claude Code bill at a 97–99% hit rate, and until now nothing
+  checked them: the overlay check covered writes only.
+- The packaged snapshot carries 329 models, up from 287.
+
 ## [0.6.2] — 2026-09-16
 
 ### Fixed

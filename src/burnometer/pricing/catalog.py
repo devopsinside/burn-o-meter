@@ -27,6 +27,7 @@ import json
 import tomllib
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -101,7 +102,39 @@ def active_snapshot_path() -> Path:
     models = parsed.get("models")
     if not isinstance(models, dict) or len(models) < _MIN_PLAUSIBLE_MODELS:
         return _PACKAGED_SNAPSHOT
+
+    # And it has to be *newer*. A usable refreshed file used to win simply by
+    # existing, so an upgrade shipping fresher rates changed nothing for anyone who
+    # had ever refreshed: their older file kept shadowing it. That is how a release
+    # adding a new model would have left it unpriced for exactly the users most
+    # likely to be keeping current. Whichever snapshot was generated more recently
+    # wins; a timestamp that cannot be compared leaves the refreshed file in force,
+    # as it always was.
+    mine = _generated_at(parsed)
+    shipped = _packaged_generated_at()
+    if mine is not None and shipped is not None and shipped > mine:
+        return _PACKAGED_SNAPSHOT
     return refreshed
+
+
+def _generated_at(snapshot: dict) -> datetime | None:
+    raw = snapshot.get("generated_at")
+    if not isinstance(raw, str):
+        return None
+    try:
+        stamp = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)
+
+
+@lru_cache(maxsize=1)
+def _packaged_generated_at() -> datetime | None:
+    """Read once: the packaged snapshot cannot change while the process runs."""
+    try:
+        return _generated_at(json.loads(_PACKAGED_SNAPSHOT.read_text()))
+    except (OSError, ValueError, AttributeError):
+        return None
 
 
 #: Providers kept when vendoring the snapshot.
@@ -476,8 +509,66 @@ def refresh_snapshot(
         )
 
     dest = dest or user_snapshot_path()
+
+    # Keep the rate of any model the new response no longer lists. A model leaving
+    # the catalogue does not change what its tokens cost while it was sold, so
+    # dropping the rate retroactively unprices history that was genuinely billed at
+    # it - one `reprice` and every past turn on it becomes an em dash. Moonshot
+    # retiring its K2 generation would have done exactly that to ten models.
+    #
+    # Deliberately after the floor check above, which counts only what upstream
+    # returned. Retaining first would let an empty response pass by carrying the
+    # old file forward, and that guard exists because an empty response once
+    # unpriced a whole machine.
+    #
+    # Each retained entry says so, and when, so nothing is presented as a current
+    # rate that is only a last-known one.
+    retained = _retain_dropped(
+        dest, snapshot["models"], vendors, today=snapshot["generated_at"][:10]
+    )
+    if retained:
+        snapshot["models"] = dict(sorted({**snapshot["models"], **retained}.items()))
+        snapshot["retained_models"] = len(retained)
+
     secure_dir(dest.parent)
     with secure_open_write(dest) as fh:
         fh.write((json.dumps(snapshot, indent=1, sort_keys=False) + "\n").encode("utf-8"))
     harden_path(dest)
     return snapshot
+
+
+def _retain_dropped(
+    dest: Path,
+    fresh: dict[str, Any],
+    vendors: tuple[str, ...] | None,
+    *,
+    today: str,
+) -> dict[str, Any]:
+    """Entries already priced here that the fresh response does not list.
+
+    Drawn from both the file being replaced and the packaged snapshot, so a refresh
+    is always a superset of what the install already priced. Taking only the file
+    being replaced left a user's refreshed snapshot short of models the packaged
+    one kept - and since the newer snapshot now wins, the refresh would have priced
+    less than the install it replaced. Where both carry a model, the file being
+    replaced wins: it is the more recent observation. A file that cannot be read
+    contributes nothing rather than failing the refresh.
+    """
+    previous: dict[str, Any] = {}
+    for source in (_PACKAGED_SNAPSHOT, dest):
+        try:
+            models = json.loads(source.read_text()).get("models") or {}
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(models, dict):
+            previous.update(models)
+
+    kept: dict[str, Any] = {}
+    for slug, entry in previous.items():
+        if slug in fresh or not isinstance(entry, dict):
+            continue
+        # Respect the vendor filter, so narrowing it is not undone by retention.
+        if vendors and entry.get("vendor") not in vendors:
+            continue
+        kept[slug] = {**entry, "retained_since": entry.get("retained_since", today)}
+    return kept
