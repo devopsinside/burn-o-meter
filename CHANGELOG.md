@@ -8,7 +8,7 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
-## [Unreleased]
+## [0.6.3] — 2026-09-24
 
 ### Added
 
@@ -28,6 +28,12 @@ without provenance is the thing this project exists to avoid.
 - `macos/make-app.sh` recognises the failure you get building on macOS 27 with only
   the Command Line Tools selected — SwiftUI's macros ship only with Xcode — and
   prints the two commands that fix it, instead of a wall of compiler errors.
+
+- A check that every Claude cache-read rate matches one of Anthropic's published
+  multipliers — 0.1×, 0.05× on Opus 5.5, 0.025× on Fable and Mythos 5.1. Cache reads
+  are most of a Claude Code bill at a 97–99% hit rate, and until now nothing
+  checked them: the overlay check covered writes only.
+- The packaged snapshot carries 329 models, up from 287.
 
 ### Fixed
 
@@ -55,14 +61,6 @@ without provenance is the thing this project exists to avoid.
   empty-response floor still counts only what upstream returned, before anything is
   retained; retaining first would have let an empty response pass by carrying the
   old file forward.
-
-### Added
-
-- A check that every Claude cache-read rate matches one of Anthropic's published
-  multipliers — 0.1×, 0.05× on Opus 5.5, 0.025× on Fable and Mythos 5.1. Cache reads
-  are most of a Claude Code bill at a 97–99% hit rate, and until now nothing
-  checked them: the overlay check covered writes only.
-- The packaged snapshot carries 329 models, up from 287.
 
 ### Changed
 
@@ -439,6 +437,7 @@ without provenance is the thing this project exists to avoid.
 First alpha. Claude Code and Codex adapters, TTL-aware pricing, SQLite storage,
 the macOS menu bar app, and the security guarantees with their enforcing tests.
 
+[0.6.3]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.3
 [0.6.2]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.2
 [0.6.1]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.1
 [0.6.0]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.0
