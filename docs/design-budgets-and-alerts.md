@@ -70,10 +70,10 @@ Two findings, the second more important than the first:
   rate between two readings is not observable, which is also why projection could
   not help. Any alert on this source is short notice.
 
-The second finding is why this is still a proposal. A warning that arrives a
-quarter of an hour before the limit is useful — enough to finish a thought and
-commit — but it is not the early warning the phrase "budget alert" suggests, and
-the feature should not be described as one.
+The second finding shaped what was built. A warning that arrives a quarter of an
+hour before the limit is useful — enough to finish a thought and commit — but it is
+not the early warning the phrase "budget alert" suggests, so it is a colour rather
+than a notification, and it should not be described as an alert.
 
 Caveat: 23 windows and 5 positives is a small sample from one user. It is enough to
 rule out the projection rule's supposed advantage, which the sampling cadence
