@@ -23,7 +23,7 @@ read what it wrote, *then* write the adapter.
 
 ---
 
-## Shipped — v0.6.0
+## Shipped — through v0.6.3
 
 | | |
 |---|---|
@@ -31,10 +31,10 @@ read what it wrote, *then* write the adapter.
 | **Quota** | Claude (exact, via the desktop app's plan records), Codex (exact) |
 | **Pricing** | 329 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
-| **Quality** | 326 tests · security guarantees enforced in CI · reconciled against real logs |
+| **Quality** | 358 tests · security guarantees enforced in CI · reconciled against real logs |
 | **Analytics** | per-model cost, cache hit rate, effective $/Mtok, cache savings, rolling windows |
 | **Install** | `./install.sh` does everything · Homebrew tap with prebuilt bottles · pipx · uv · a release archive needing no toolchain |
-| **macOS app** | app icon · popover sized to the display it opens on · four menu bar title widths |
+| **macOS app** | app icon · popover sized to the display it opens on · four menu bar title widths · limit reading turns red at 90% |
 
 ---
 
@@ -42,7 +42,7 @@ read what it wrote, *then* write the adapter.
 
 ### 1. Other providers through the agents we already support
 
-Claude Code and Codex can both be pointed at another provider, and rates for 290
+Claude Code and Codex can both be pointed at another provider, and rates for 329
 models already ship — so **this may need no new code at all**. Point Codex at
 DeepSeek via `model_provider`, run a task, and check the model is named, priced,
 and that the integrity check still reconciles.
