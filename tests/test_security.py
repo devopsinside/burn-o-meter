@@ -561,7 +561,6 @@ def test_json_output_never_fuses_cost_bases(
 def test_snapshot_file_is_canary_clean_and_private(burn_home: Path) -> None:
     """G1/G4: the payload the menu bar reads carries only aggregates, and is
     owner-readable only — it sits in the same directory as the database."""
-    import stat as stat_module
 
     from burnometer.snapshot import write_snapshot
     from burnometer.store import Store
@@ -577,7 +576,7 @@ def test_snapshot_file_is_canary_clean_and_private(burn_home: Path) -> None:
     assert CANARY not in blob, "prompt content leaked into the UI payload"
     assert CREDENTIAL_CANARY not in blob
     assert str(Path.home()).encode() not in blob, "absolute home path in the UI payload"
-    assert stat_module.S_IMODE(path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
 def test_claude_plan_usage_org_id_never_reaches_the_store(burn_home: Path) -> None:
