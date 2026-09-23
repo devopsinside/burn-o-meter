@@ -105,6 +105,14 @@ worse than not having it:
   window that spikes normally will fire constantly. It probably needs to compare
   against your own history, the way `blocks` already does with its median.
 
+**All three are now answered — see [docs/design-budgets-and-alerts.md](docs/design-budgets-and-alerts.md).**
+Measured against 30 days of real plan-usage history: a fixed 90% threshold on the
+5-hour window caught every run-out with the fewest false alarms, and a projection
+rule did no better. The finding that matters more is a ceiling no rule can beat —
+Claude records usage about every 15 minutes, so any alert on it arrives roughly a
+quarter of an hour before the limit, not earlier. Two product questions remain open
+there before it is built.
+
 *Deliberately after the adapters: an alert about two agents is less useful than an
 accurate figure across many.*
 
