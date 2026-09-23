@@ -32,7 +32,35 @@ if [ -z "$VERSION" ]; then
 fi
 
 echo "==> building (release)"
-swift build --package-path "$PKG" -c release
+# Captured so a known failure can be explained rather than left as a wall of
+# compiler errors. From the macOS 27 SDK, SwiftUI's property wrappers are compiler
+# macros whose plugin (libSwiftUIMacros) ships with Xcode but not with the Command
+# Line Tools — so a machine whose tools are selected, as they are after an OS
+# upgrade, fails on the first @State with "plugin for module 'SwiftUIMacros' not
+# found", which says nothing about what to do.
+BUILD_LOG="$(mktemp)"
+trap 'rm -f "$BUILD_LOG"' EXIT
+if ! swift build --package-path "$PKG" -c release 2>&1 | tee "$BUILD_LOG"; then
+  if grep -q "SwiftUIMacros" "$BUILD_LOG"; then
+    {
+      echo
+      echo "The build needs full Xcode, not just the Command Line Tools."
+      echo "SwiftUI's macros ship only with Xcode, and the active developer directory is:"
+      echo "    $(xcode-select -p 2>/dev/null || echo unknown)"
+      echo
+      if [ -d /Applications/Xcode.app ]; then
+        echo "Xcode is installed. Select it, and accept its licence if you have not yet:"
+        echo "    sudo xcode-select -s /Applications/Xcode.app"
+        echo "    sudo xcodebuild -license accept"
+      else
+        echo "Install Xcode from the App Store, then:"
+        echo "    sudo xcode-select -s /Applications/Xcode.app"
+        echo "    sudo xcodebuild -license accept"
+      fi
+    } >&2
+  fi
+  exit 1
+fi
 
 BIN="$(swift build --package-path "$PKG" -c release --show-bin-path)/burn-o-meter"
 [ -x "$BIN" ] || { echo "build produced no binary at $BIN" >&2; exit 1; }
