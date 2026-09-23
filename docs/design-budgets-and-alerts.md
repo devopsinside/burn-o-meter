@@ -1,6 +1,7 @@
 # Design: budgets and alerts
 
-Status: **proposed**, measured against real data on 2026-09-23. Not built.
+Status: **decided and built** (v0.6.3) — the menu bar reading turns the
+nearly-exhausted colour at 90%. Measured against real data on 2026-09-23.
 
 The roadmap names three questions that must be settled before this is built,
 because getting them wrong makes the feature worse than not having it. This records
@@ -27,24 +28,25 @@ stops work.
 
 ## 2. Notification without a daemon that talks
 
-**Settled: the menu bar app speaks; the background agent stays silent.**
+**Settled: no notification. The menu bar reading changes colour instead.**
 
-The agent exists to scan and is silent by design, and giving it a voice would
-mean building everything the app already has. The app already scans every minute,
-already holds the snapshot, and is the thing the user has chosen to keep running.
-It posts through `UNUserNotificationCenter`, which puts the permission prompt,
-Focus modes and Do Not Disturb in the user's hands rather than ours.
+A notification needs a permission prompt, can interrupt, and — per the measurement
+below — would arrive only about a quarter of an hour before the limit anyway. A
+colour on the number already in the menu bar needs no permission, cannot interrupt,
+and is exactly as timely. It also removes the question this section began with: the
+background agent never needs a voice, and "never say it twice" needs no state,
+because a colour is not an event that can repeat.
 
-"Never say it twice" needs one small piece of state: for each window, the
-thresholds already announced. A window is identified by its reset time, which the
-engine already records, so a new window starts with a clean slate by construction
-and no clearing logic is needed.
+The colour is the popover's own for that level, taken from the same function
+(`Theme.quotaState`) with the threshold in one constant, so the menu bar and the
+popover can never disagree about the same reading. Readings are classified as
+displayed — rounded — so 89.6%, shown as "90%", is coloured as 90%.
 
 ## 3. Not crying wolf — measured
 
-This was the open question, and it was answered with 30 days of this author's own
-Claude plan-usage history rather than by argument: 1,240 samples, 23 completed
-five-hour windows, **5 of which ran out** (reached 100%).
+This was the open question, and it was answered with 30 days of real Claude
+plan-usage history from one heavy user rather than by argument: 1,240 samples, 23
+completed five-hour windows, **5 of which ran out** (reached 100%).
 
 How often each rule would have fired, and how much warning it gave before the
 window ran out:
@@ -77,18 +79,15 @@ Caveat: 23 windows and 5 positives is a small sample from one user. It is enough
 rule out the projection rule's supposed advantage, which the sampling cadence
 explains mechanically; it is not enough to tune a threshold to the percent.
 
-## What a first version would be
+## What was built
 
-- One alert: the 5-hour window reaching 90%, on a subscription. Opt-in.
-- Stated honestly in the UI as short notice, with the reason.
-- The weekly window and API-key dollar budgets follow once the first has been lived
-  with, because each adds a way to be noisy.
+- The rate-limit reading in the menu bar turns the nearly-exhausted colour at 90% —
+  the same colour the popover's row already used at that level.
+- **On by default.** There is nothing to opt into: a colour needs no permission and
+  cannot interrupt. *Menu Bar Shows → Colour the Limit at 90%* turns it off for
+  anyone who wants a monochrome menu bar.
+- Only the percentage is coloured, never the spend beside it; everything else keeps
+  the button's own tint, including its inversion while the item is held down.
 
-## Open — the author's call, not an engineering one
-
-1. **Opt-in or on by default?** On by default reaches the people it would help, but
-   a notification permission prompt at first launch, for a feature they did not ask
-   for, is a poor first impression.
-2. **Is a ~15-minute warning worth a notification at all,** or would the same fact
-   be better as a change in the menu bar itself — the percentage turning to the
-   warning colour at 90%, which costs no permission and cannot interrupt?
+Not built, and deliberately: API-key dollar budgets and the weekly window. Each adds
+a way to be noisy, and should follow only once this one has been lived with.

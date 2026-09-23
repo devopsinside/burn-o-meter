@@ -58,6 +58,16 @@ enum Preferences {
     /// user can revoke it in System Settings → General → Login Items. The older
     /// approach — writing a LaunchAgent plist ourselves — leaves an entry the
     /// system UI cannot manage.
+    /// Colour the menu bar's rate-limit reading once it is nearly exhausted.
+    ///
+    /// On unless turned off. A colour needs no permission and cannot interrupt, so
+    /// there is nothing for anyone to opt into; the switch exists for people who
+    /// would rather their menu bar stayed monochrome.
+    static var colourLimitInMenuBar: Bool {
+        get { UserDefaults.standard.object(forKey: "colourLimitInMenuBar") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "colourLimitInMenuBar") }
+    }
+
     static var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }
         set {

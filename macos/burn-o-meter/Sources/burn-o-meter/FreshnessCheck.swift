@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import SwiftUI
 
 /// A freshness regression check, run in CI as `burn-o-meter --check-freshness`.
 ///
@@ -91,6 +93,54 @@ enum FreshnessCheck {
         check("a future timestamp clamps to zero rather than going negative",
               future.ageSeconds == 0 && future.freshness == .current,
               "age \(future.ageSeconds.map(String.init) ?? "nil")")
+
+        // The menu bar's nearly-exhausted colour. Pure function, so checked directly.
+        print("menu bar limit colour")
+        func range(_ text: String, _ percent: Double?, warn: Bool = true) -> NSRange? {
+            MenuBarTitle.warningRange(in: text, percent: percent, warn: warn)
+        }
+        check("below the threshold stays uncoloured",
+              range("89%  ~$44.05", 89) == nil)
+        check("at the threshold, the reading is coloured",
+              range("90%  ~$44.05", 90) == NSRange(location: 0, length: 3))
+        check("at the limit, the whole reading is coloured",
+              range("100%  ~$44.05", 100) == NSRange(location: 0, length: 4))
+        // 89.6 displays as "90%". Colouring by the raw value would leave a figure
+        // reading 90 uncoloured, disagreeing with itself.
+        check("a reading that displays as 90% is coloured as 90%",
+              range("90%  ~$44.05", 89.6) == NSRange(location: 0, length: 3),
+              "range was \(String(describing: range("90%  ~$44.05", 89.6)))")
+        check("only the percentage, never the spend beside it",
+              range("~$44.05  95%", 95) == NSRange(location: 9, length: 3),
+              "range was \(String(describing: range("~$44.05  95%", 95)))")
+        check("switched off, nothing is coloured",
+              range("95%  ~$44.05", 95, warn: false) == nil)
+        check("a title without a reading is left alone",
+              range("~$44.05", nil) == nil && range("", 95) == nil)
+
+        // The colour is the popover's own for this level, not a second opinion.
+        let title = MenuBarTitle.attributed("95%  ~$44.05", percent: 95, warn: true)
+        let applied = title.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+        let spend = title.attribute(.foregroundColor, at: 5, effectiveRange: nil)
+        let popover = NSColor(Theme.quotaState(95).color)
+        // Components with a tolerance, not NSColor ==, which can differ on the float
+        // representation of the same colour and would make this check flaky.
+        func rgb(_ color: NSColor?) -> [CGFloat]? {
+            guard let c = color?.usingColorSpace(.sRGB) else { return nil }
+            return [c.redComponent, c.greenComponent, c.blueComponent]
+        }
+        let sameColour: Bool = {
+            guard let a = rgb(applied), let b = rgb(popover) else { return false }
+            return zip(a, b).allSatisfy { abs($0 - $1) < 0.01 }
+        }()
+        check("the colour matches the popover's for the same reading", sameColour,
+              "menu bar \(String(describing: rgb(applied))) vs popover \(String(describing: rgb(popover)))")
+        check("the spend keeps the button's own colour",
+              spend == nil)
+        check("the popover and the menu bar agree on where the threshold is",
+              Theme.quotaState(90).label == "nearly exhausted"
+                  && Theme.quotaState(89.4).label == "getting full"
+                  && Theme.isNearlyExhausted(90) && !Theme.isNearlyExhausted(89.4))
 
         if failures.isEmpty {
             print("freshness ok")
