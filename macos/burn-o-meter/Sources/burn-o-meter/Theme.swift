@@ -120,12 +120,29 @@ enum Theme {
 
     /// Quota state. Returns the colour *and* a label, because colour alone is
     /// never allowed to carry the meaning.
+    /// Where a rate-limit window counts as nearly exhausted. One constant, read by
+    /// both the popover's row colour and the menu bar's, so the two can never
+    /// disagree about the same number.
+    ///
+    /// 90 was measured rather than chosen: against a month of real plan-usage
+    /// history it flagged every window that went on to run out, with the fewest
+    /// false alarms of the thresholds tried. See docs/design-budgets-and-alerts.md.
+    static let nearlyExhaustedPercent: Double = 90
+
+    /// Classified by the number as it is *displayed*, which is rounded. Otherwise
+    /// 89.6% reads "90%" on screen but is coloured as though it were below 90 — the
+    /// colour and the figure beside it disagreeing about the same reading.
     static func quotaState(_ percent: Double) -> (color: Color, label: String) {
-        switch percent {
+        switch percent.rounded() {
         case ..<70: return (good, "healthy")
-        case ..<90: return (warning, "getting full")
+        case ..<nearlyExhaustedPercent: return (warning, "getting full")
         default: return (critical, "nearly exhausted")
         }
+    }
+
+    /// Whether a reading counts as nearly exhausted, by the same rule as the colour.
+    static func isNearlyExhausted(_ percent: Double) -> Bool {
+        percent.rounded() >= nearlyExhaustedPercent
     }
 
     // MARK: Helpers

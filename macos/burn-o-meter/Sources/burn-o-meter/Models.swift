@@ -320,7 +320,7 @@ struct Snapshot {
         let onSubscription = subtotals.first?.0 == .apiEquivalent
 
         if let quota = primaryQuota, let percent = quota.usedPercent {
-            let pct = "\(Int(percent.rounded()))%"
+            let pct = MenuBarTitle.percentText(percent)
             guard let spend else { return pct }
             switch style {
             case .full:

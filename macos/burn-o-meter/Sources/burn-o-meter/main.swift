@@ -139,18 +139,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///
     /// No foreground colour is set, so the button keeps tinting the title itself -
     /// including the inversion while the item is held down.
-    private func setTitle(_ text: String) {
+    private func setTitle(_ text: String, percent: Double? = nil) {
         guard let button = statusItem.button else { return }
         guard !text.isEmpty else {
             button.attributedTitle = NSAttributedString(string: "")
             return
         }
-        button.attributedTitle = NSAttributedString(
-            string: text,
-            attributes: [
-                .font: NSFont.menuBarFont(ofSize: 0),
-                .baselineOffset: MenuBarIcon.titleBaselineOffset,
-            ]
+        button.attributedTitle = MenuBarTitle.attributed(
+            text, percent: percent, warn: Preferences.colourLimitInMenuBar
         )
     }
 
@@ -161,7 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.model.snapshot = fresh
-                self.setTitle(fresh.menuBarTitle)
+                self.setTitle(fresh.menuBarTitle, percent: fresh.primaryQuota?.usedPercent)
                 // New data changes the content's height. Without this the popover
                 // keeps whatever size it had when it opened, which is how it ends
                 // up cut off mid-section.
@@ -227,6 +223,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.representedObject = style.rawValue
             displayMenu.addItem(item)
         }
+        displayMenu.addItem(.separator())
+        let colourLimit = NSMenuItem(
+            title: "Colour the Limit at \(Int(Theme.nearlyExhaustedPercent))%",
+            action: #selector(toggleColourLimit), keyEquivalent: "")
+        colourLimit.target = self
+        // A marker of its own: the refresh below ticks this submenu's items by
+        // matching a style name, and would otherwise untick this one on every open.
+        colourLimit.representedObject = Self.colourLimitMarker
+        displayMenu.addItem(colourLimit)
         display.submenu = displayMenu
         menu.addItem(display)
 
@@ -273,7 +278,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let display = optionsMenu.item(withTitle: "Menu Bar Shows")?.submenu {
             for item in display.items {
                 let raw = item.representedObject as? String
-                item.state = raw == Preferences.menuBarStyle.rawValue ? .on : .off
+                if raw == Self.colourLimitMarker {
+                    item.state = Preferences.colourLimitInMenuBar ? .on : .off
+                } else {
+                    item.state = raw == Preferences.menuBarStyle.rawValue ? .on : .off
+                }
             }
         }
         // The item is rebuilt by title each time, so find it by prefix.
@@ -309,7 +318,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let raw = sender.representedObject as? String,
               let style = MenuBarStyle(rawValue: raw) else { return }
         Preferences.menuBarStyle = style
-        setTitle(model.snapshot.menuBarTitle)
+        setTitle(model.snapshot.menuBarTitle, percent: model.snapshot.primaryQuota?.usedPercent)
+    }
+
+    private static let colourLimitMarker = "colour-limit"
+
+    @objc private func toggleColourLimit() {
+        Preferences.colourLimitInMenuBar.toggle()
+        // Redrawn now, not at the next poll, so the switch visibly does something.
+        setTitle(model.snapshot.menuBarTitle, percent: model.snapshot.primaryQuota?.usedPercent)
     }
 
     @objc private func toggleLaunchAtLogin() {

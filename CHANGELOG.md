@@ -10,6 +10,22 @@ without provenance is the thing this project exists to avoid.
 
 ## [Unreleased]
 
+### Added
+
+- **The menu bar warns before a limit runs out.** The rate-limit reading turns the
+  nearly-exhausted colour at 90% — the colour, and the threshold, its row in the
+  popover already used, now read from one constant so the two cannot disagree. On by
+  default: a colour needs no permission and cannot interrupt, so there is nothing to
+  opt into; *Menu Bar Shows → Colour the Limit at 90%* turns it off. Only the
+  percentage is coloured, never the spend beside it.
+
+  90% was measured, not chosen. Against a month of real plan-usage history it
+  flagged every window that went on to run out, with the fewest false alarms of the
+  rules tried — including one projecting "will this run out before the reset?",
+  which did no better. No rule can warn more than about fifteen minutes ahead,
+  because Claude records usage only that often. See
+  [docs/design-budgets-and-alerts.md](docs/design-budgets-and-alerts.md).
+
 ### Fixed
 
 - **Claude Opus 5.5 was unpriced.** Five turns on its first day showed as an em
@@ -44,6 +60,12 @@ without provenance is the thing this project exists to avoid.
   are most of a Claude Code bill at a 97–99% hit rate, and until now nothing
   checked them: the overlay check covered writes only.
 - The packaged snapshot carries 329 models, up from 287.
+
+### Changed
+
+- A rate-limit reading is classified by the number as displayed. 89.6% shows as
+  "90%", and was coloured as though it were below 90 — the figure and its colour
+  disagreeing about the same reading. The popover had the same edge.
 
 ## [0.6.2] — 2026-09-16
 
