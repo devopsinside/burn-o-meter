@@ -42,6 +42,15 @@ cache_write_1h = 20.0   # 2.00x
 verified = "2026-08-21"
 source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
 
+[models."claude-fable-5-1"]
+# base input $10/Mtok  ->  5m write $12.5 (1.25x, from models.dev)
+# Cache reads are 0.025x input ($0.25) on this model, not the usual 0.1x -
+# Anthropic's own footnote. That rate comes from models.dev and was checked
+# against the page cited below; it is not set here.
+cache_write_1h = 20.0   # 2.00x
+verified = "2026-09-23"
+source = "https://platform.claude.com/docs/en/about-claude/pricing"
+
 [models."claude-haiku-4-5"]
 # base input $1/Mtok  ->  5m write $1.25 (1.25x, from models.dev)
 cache_write_1h = 2.0   # 2.00x
@@ -89,6 +98,15 @@ source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
 cache_write_1h = 10.0   # 2.00x
 verified = "2026-08-21"
 source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-opus-5-5"]
+# base input $4/Mtok  ->  5m write $5 (1.25x, from models.dev)
+# Cache reads are 0.05x input ($0.20) on this model, not the usual 0.1x - stated
+# in a footnote on the page below, and confirmed there before this entry was
+# added because the ratio looked like a data error. It is not one.
+cache_write_1h = 8.0   # 2.00x
+verified = "2026-09-23"
+source = "https://platform.claude.com/docs/en/about-claude/pricing"
 
 [models."claude-sonnet-4-5"]
 # base input $3/Mtok  ->  5m write $3.75 (1.25x, from models.dev)

@@ -29,7 +29,7 @@ read what it wrote, *then* write the adapter.
 |---|---|
 | **Agents** | Claude Code, Codex CLI, OpenCode, Kimi Code (the last two route to anything, including local models) |
 | **Quota** | Claude (exact, via the desktop app's plan records), Codex (exact) |
-| **Pricing** | 287 models · a 1-hour cache-write rate no public database carries |
+| **Pricing** | 329 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
 | **Quality** | 326 tests · security guarantees enforced in CI · reconciled against real logs |
 | **Analytics** | per-model cost, cache hit rate, effective $/Mtok, cache savings, rolling windows |
