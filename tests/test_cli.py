@@ -29,8 +29,9 @@ def test_doctor_says_how_to_turn_on_the_live_claude_source(
     """Absent until installed, which is not the same as broken."""
     burn_home.mkdir()
     assert main(["doctor"]) == 0
-    out = " ".join(capsys.readouterr().out.split())
-    assert "statusline install" in out
+    # disclosed(): in a narrow terminal the hint wraps, with cell borders between
+    # its words - joining the lines alone is what failed CI at 60 columns.
+    assert "statuslineinstall" in disclosed(capsys.readouterr().out)
 
 
 def flat(text: str) -> str:
