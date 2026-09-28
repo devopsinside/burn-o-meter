@@ -217,6 +217,11 @@ def _window_start(series: list[QuotaSnapshot]) -> datetime | None:
     """When the current window opened, to within the sampling interval."""
     if len(series) < 2:
         return None
+    if not series[-1].used_percent:
+        # Nothing used, so no window is known to be open and there is no reset to
+        # predict. Walking back from here would take the gap between two idle
+        # readings for "first use" and invent a window starting in it.
+        return None
 
     index = len(series) - 1
     while index > 0:

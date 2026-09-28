@@ -198,6 +198,19 @@ def test_a_naive_drop_rule_would_have_been_stale() -> None:
     assert remaining > 0, "a drop-based rule would put the reset hours in the past"
 
 
+def test_no_reset_is_claimed_while_nothing_is_used() -> None:
+    """The shape of a real afternoon: a window runs to 56%, rolls to 0, and the
+    app keeps recording 0. No window has been observed opening, so there is no
+    reset to predict - yet walking back from the last sample found two idle
+    readings, took the gap between them for 'first use', and claimed a window
+    ending five hours after it."""
+    from burnometer.adapters.claude_desktop import _attach_reset_times
+
+    series = [_snap(m, p) for m, p in ((180, 3), (120, 56), (75, 56), (60, 0), (45, 0), (3, 0))]
+    _attach_reset_times(series)
+    assert all(q.resets_at is None for q in series)
+
+
 def test_no_reset_is_claimed_for_the_weekly_window() -> None:
     """Six days of real data showed one drop, straight to zero — a scheduled
     reset, not one triggered by use. One observation cannot establish a period,
