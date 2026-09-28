@@ -28,7 +28,8 @@ git commit -am "vX.Y.Z" && git push
 git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z
 
 # 3. Point the formula at the tag archive's checksum, and push before building.
-#    The bottle job checks out the tag, so a fix made after this is invisible to it.
+#    The bottle job builds the formula on main (not the tag), so it must be pushed
+#    first — a checksum still pointing at the previous release fails the build.
 curl -sL -o /tmp/src.tar.gz \
   "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/vX.Y.Z.tar.gz"
 shasum -a 256 /tmp/src.tar.gz          # paste into Formula/burn-o-meter.rb

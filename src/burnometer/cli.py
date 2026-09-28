@@ -731,8 +731,8 @@ def cmd_statusline(args: argparse.Namespace) -> int:
     if action == "install" and outcome != "already installed":
         console.print(
             "  Claude Code now passes its live rate-limit figures here on every turn.\n"
-            "  [dim]Only the percentages and reset times are kept. Takes effect in new\n"
-            "  Claude Code sessions; remove with: burn-o-meter statusline uninstall[/dim]"
+            "  [dim]Only the percentages and reset times are kept. Running sessions pick\n"
+            "  it up on their next turn; remove with: burn-o-meter statusline uninstall[/dim]"
         )
     return 0
 

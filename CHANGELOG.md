@@ -8,6 +8,14 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Fixed
+
+- **`statusline install` said it took effect only in new Claude Code sessions.**
+  Running sessions pick it up on their next turn, as observed twice while
+  releasing 0.6.4; the message now says so.
+
 ## [0.6.4] — 2026-09-29
 
 ### Added
