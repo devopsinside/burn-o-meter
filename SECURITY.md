@@ -27,6 +27,7 @@ stopped; and any network call outside `pricing refresh`.
 | Claude Code transcripts | `~/.claude/projects/*/*.jsonl` | Full prompts and completions — pasted secrets, proprietary source, customer data |
 | Codex CLI rollouts | `~/.codex/sessions/**/rollout-*.jsonl` | The same, plus system prompts |
 | Claude (plan usage) records | `~/Library/Application Support/Claude/plan-usage-history.json` | Plan utilisation and the account's organisation id |
+| Claude (live, via Claude Code) status line input | stdin of `burn-o-meter statusline`, which Claude Code runs on every turn once installed | The working directory, transcript path, session id and model, sent beside the rate limits |
 | OpenCode messages | the `part` table in `~/.local/share/opencode/opencode.db` | Conversation text, in the same file as the usage we read |
 | Kimi Code prompts | `turn.prompt` and `context.append_message` in `wire.jsonl` | What you typed, verbatim, in the same file as the usage we read |
 | **Credentials** | `~/.codex/auth.json`, `~/.gemini/oauth_creds.json`, `~/.claude/sessions/*.key`, `~/.local/share/opencode/auth.json`, the `account` / `credential` tables in `opencode.db`, `api_key` in `~/.kimi-code/config.toml` | Account takeover. **These sit inside directories we scan — two of them inside the very file we read.** |
@@ -244,9 +245,44 @@ not access to Anthropic's Services: no credential, no network request, no
 automation against a remote endpoint. That is why the passive source is fine and
 the live one is not.
 
-The consequence is a lag of up to about fifteen minutes on Claude's percentages.
-Every reading therefore carries its own age, and the UI says so rather than
-presenting an old number as current.
+The consequence is a lag of up to about fifteen minutes on Claude's percentages
+— longer in practice, since the app samples only when it fetches.
+
+### The status line: live, and still not a lookup
+
+Claude Code itself receives the current percentages on every response, and passes
+them to the user's configured **status line command** on stdin — a documented
+Claude Code feature, and one whose own built-in setup guide shows reading
+`rate_limits` from it. `burn-o-meter statusline install` sets that command to
+`burn-o-meter statusline`. This is the same kind of source as the desktop file:
+Anthropic's own client handing over what it already has, locally. No credential
+is read, no request is made, nothing is automated against a remote endpoint.
+
+What it does with the input:
+
+- **Keeps four numbers.** `rate_limits.five_hour` and `.seven_day`, each a
+  percentage and a reset time, extracted with the same `pluck_*` helpers as every
+  adapter. The rest of the payload — working directory, transcript path, session
+  id, model, cost — is never written, logged or echoed.
+- **Writes one file**, `~/.burn-o-meter/claude-rate-limits.json`, `0600`, via a
+  temporary file renamed over it so the scanner never reads half of one.
+- **Never breaks the status line.** Malformed or oversized input (over 1 MiB) is
+  ignored and the command always exits 0.
+
+`install` is the one place burn-o-meter writes outside its own directory: it
+changes the `statusLine` key of `~/.claude/settings.json` (or
+`$CLAUDE_CONFIG_DIR/settings.json`) and nothing else, atomically, keeping the
+file's permissions. An existing status line is kept and run after ours with the
+same input (`--then`), exactly as Claude Code would have run it; `uninstall`
+restores it. No copy of `settings.json` is made — it can hold API keys in its
+`env` block.
+
+*Enforced by:* `test_statusline_keeps_only_the_rate_limits`,
+`test_statusline_capture_is_private`, `test_statusline_never_fails`,
+`test_install_changes_only_the_status_line`.
+
+Every reading from either source carries its own age, and the UI says so rather
+than presenting an old number as current.
 
 ## Guardrails
 

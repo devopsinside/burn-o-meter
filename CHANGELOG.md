@@ -8,6 +8,32 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Added
+
+- **Claude's rate-limit percentage, live from Claude Code.** Claude Code receives
+  the service's own 5-hour and weekly figures on every response and passes them to
+  its status line command; `burn-o-meter statusline install` makes that command
+  burn-o-meter, which keeps the two percentages and their reset times, discards the
+  rest of the payload (working directory, transcript path, session id), and prints
+  `5h 43% · 7d 19%` as the status line. An existing status line is kept and still
+  shown; `uninstall` restores it. The reset time is the service's own rather than
+  derived. Found because the menu bar read **0%** on a window Claude Code had taken
+  to **43%**: the desktop app's last sample predated the window, and it wrote no
+  other for over half an hour.
+- **`today` shows Claude's percentage**, with its age and reset time, alongside
+  Codex's. It had shown only Codex's, and told Claude users no quota was stored.
+
+### Fixed
+
+- **A reset time was claimed for a window nobody had opened.** With the five-hour
+  figure at 0%, the gap between two idle desktop samples was taken for first use,
+  and a reset five hours after it was reported for a window that did not exist.
+  A 0% reading now carries no reset time.
+- **`python -m burnometer` did not run**, though the engine records it as the
+  fallback way to invoke itself when no `burnometer` executable is on the PATH.
+
 ## [0.6.3] — 2026-09-24
 
 ### Added

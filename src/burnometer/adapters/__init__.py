@@ -8,7 +8,14 @@ a function, and a cycle that works by accident is one edit away from not.
 
 # Imported for their registration side effect. Order sets the order `doctor`
 # lists them in.
-from . import claude_code, claude_desktop, codex, kimi, opencode  # noqa: F401,E402  (side effect)
+from . import (  # noqa: F401,E402  (side effect)
+    claude_code,
+    claude_desktop,
+    claude_statusline,
+    codex,
+    kimi,
+    opencode,
+)
 from .base import REGISTRY, Adapter, LogSource, ParseResult, register, registered
 
 __all__ = [

@@ -258,10 +258,10 @@ class Block:
     Claude's rate limit runs on a five-hour window that opens with the first
     request. We can derive the window and what was consumed inside it exactly.
     We cannot derive **how full it is**: Anthropic does not publish a token
-    limit for subscription plans, and Claude Code stores no quota data on disk
-    (verified across every transcript and CLI subcommand). So this type reports
-    consumption and timing, and deliberately exposes no percentage — see
-    :meth:`BlockReport.relative_to_history` for the honest alternative.
+    limit for subscription plans, so there is no denominator. So this type
+    reports consumption and timing, and deliberately exposes no percentage — see
+    :meth:`BlockReport.relative_to_history`. The service's own percentage, where
+    one has been reported, arrives separately as a ``QuotaSnapshot``.
     """
 
     start: datetime

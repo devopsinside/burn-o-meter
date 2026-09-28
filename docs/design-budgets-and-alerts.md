@@ -75,6 +75,13 @@ hour before the limit is useful — enough to finish a thought and commit — bu
 not the early warning the phrase "budget alert" suggests, so it is a colour rather
 than a notification, and it should not be described as an alert.
 
+**Since then, the ceiling has moved.** It was a property of the desktop app's
+sampling, and a second source now exists: Claude Code hands its status line command
+the service's figure on every turn (`burn-o-meter statusline install`). For Claude
+Code use, the reading now updates as each turn lands, so the colour changes on the
+turn that crosses 90% rather than up to fifteen minutes later. The 90% threshold was
+measured on the sparser source and has not yet been re-measured on this one.
+
 Caveat: 23 windows and 5 positives is a small sample from one user. It is enough to
 rule out the projection rule's supposed advantage, which the sampling cadence
 explains mechanically; it is not enough to tune a threshold to the percent.

@@ -107,20 +107,23 @@ def _window_already_reset(resets_at: str | None, observed_at: str | None) -> boo
     return resets <= observed or resets <= datetime.now(UTC)
 
 
-def write_engine_pointer(path: Path | None = None) -> Path:
-    """Record how to invoke this engine, so the menu bar can trigger a scan."""
+def engine_argv() -> list[str]:
+    """How to invoke this engine from outside it, in a form that survives upgrades."""
     import sys
-
-    target = path or engine_path()
-    secure_dir(target.parent)
 
     executable = shutil.which("burnometer")
     if executable:
-        argv = [_stable_path(executable)]
-    else:
-        candidate = Path(sys.executable).parent / "burnometer"
-        argv = [str(candidate)] if candidate.exists() else [sys.executable, "-m", "burnometer"]
+        return [_stable_path(executable)]
+    candidate = Path(sys.executable).parent / "burnometer"
+    return [str(candidate)] if candidate.exists() else [sys.executable, "-m", "burnometer"]
 
+
+def write_engine_pointer(path: Path | None = None) -> Path:
+    """Record how to invoke this engine, so the menu bar can trigger a scan."""
+    target = path or engine_path()
+    secure_dir(target.parent)
+
+    argv = engine_argv()
     with secure_open_write(target) as fh:
         fh.write(json.dumps({"argv": argv}, indent=1).encode("utf-8"))
     harden_path(target)

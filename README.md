@@ -195,17 +195,28 @@ that, project-path privacy, custom rates and retention.
 | **Claude Code** | ✅ | ✅ | via the row below | `~/.claude/projects/*/*.jsonl` |
 | **Codex CLI** | ✅ | ✅ | **exact** — with reset time | `~/.codex/sessions/**/rollout-*.jsonl` |
 | Claude (plan usage) | — | — | **exact** — 5-hour and weekly | `~/Library/Application Support/Claude/plan-usage-history.json` |
+| Claude (live, via Claude Code) | — | — | **exact, live** — 5-hour and weekly, with reset time | Claude Code's status line, once `burn-o-meter statusline install` is run |
 | **OpenCode** | ✅ | ✅ | — | `~/.local/share/opencode/opencode.db` |
 | **Kimi Code** | ✅ | ✅ | — | `~/.kimi-code/sessions/*/*/agents/*/wire.jsonl` |
 
 Claude Code's own transcripts carry no quota, so the 5-hour and weekly figures
-come from the Claude desktop app's records — which cover the whole account,
-since the limit is shared with Claude chat. They are Anthropic's own
-percentages, not something we derived — but the desktop app records them only
-about every 15 minutes, so a reading can sit behind what that app shows live.
-Each carries its age and the UI says so rather than presenting an old number as
-current. The **reset countdown** is derived from the series and marked `~`; none
-is claimed for the weekly cap, where the evidence does not support one.
+come from two places, both Anthropic's own percentages rather than something we
+derived, and both covering the whole account (the limit is shared with Claude
+chat):
+
+- **Claude Code's status line — live.** Claude Code receives the current figures
+  on every response and hands them to its status line command. Run
+  `burn-o-meter statusline install` once and that command is burn-o-meter: it
+  keeps the two percentages and their reset times, discards the rest, and prints
+  `5h 34% · 7d 15%` as your status line. An existing status line is kept and
+  still shown. Remove it with `burn-o-meter statusline uninstall`.
+- **The Claude desktop app's records — no setup, but not live.** The app records
+  a sample only when it fetches one, so a reading can sit an hour or more behind
+  while Claude Code works. Its **reset countdown** is derived from the series and
+  marked `~`; none is claimed for the weekly cap.
+
+The newest reading wins. Each carries its age, and the UI says so rather than
+presenting an old number as current.
 
 Agent data can be relocated (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`), and Claude Code
 writes to `~/.claude` or `~/.config/claude` depending on install. Both are

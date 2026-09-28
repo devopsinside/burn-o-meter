@@ -23,6 +23,16 @@ def test_doctor_runs_with_no_database(burn_home: Path, capsys: pytest.CaptureFix
     assert "no database yet" in out
 
 
+def test_doctor_says_how_to_turn_on_the_live_claude_source(
+    burn_home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Absent until installed, which is not the same as broken."""
+    burn_home.mkdir()
+    assert main(["doctor"]) == 0
+    out = " ".join(capsys.readouterr().out.split())
+    assert "statusline install" in out
+
+
 def flat(text: str) -> str:
     """Collapse rich's line wrapping so assertions do not depend on width.
 
@@ -156,6 +166,62 @@ def test_blocks_output_disclaims_the_missing_denominator(
     out = flat(capsys.readouterr().out)
     assert "percent of limit" in out
     assert "invented" in out
+
+
+def test_today_shows_claudes_own_percentage_with_its_age(
+    burn_home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`today` showed only Codex's quota and told Claude users none was stored,
+    while the menu bar showed Claude's. A reading from a window that has since
+    reset describes nothing current and is left out, as the snapshot does."""
+    from datetime import UTC, datetime, timedelta
+
+    from burnometer.models import QuotaSnapshot, QuotaSource
+    from burnometer.store import Store
+
+    _seed(burn_home)
+    now = datetime.now(UTC)
+
+    def reading(window: str, percent: float, resets: datetime, minutes: int):
+        return QuotaSnapshot(
+            provider="claude",
+            window_name=window,
+            used_percent=percent,
+            observed_at=now - timedelta(minutes=12),
+            source=QuotaSource.EXACT,
+            window_minutes=minutes,
+            resets_at=resets,
+        )
+
+    with Store.open(burn_home / "burn.db") as store:
+        store.record_quota(
+            [
+                reading("five_hour", 43, now + timedelta(hours=2, minutes=5), 300),
+                reading("seven_day", 19, now + timedelta(days=3, hours=1), 10080),
+            ]
+        )
+        # An older window, already rolled over: must not be shown as current.
+        store.record_quota(
+            [
+                QuotaSnapshot(
+                    provider="codex",
+                    window_name="primary",
+                    used_percent=97,
+                    observed_at=now - timedelta(hours=9),
+                    source=QuotaSource.EXACT,
+                    window_minutes=300,
+                    resets_at=now - timedelta(hours=4),
+                )
+            ]
+        )
+    capsys.readouterr()
+    assert main(["today"]) == 0
+    out = flat(capsys.readouterr().out)
+    assert "claude five_hour 43% used of a 5-hour window · resets in ~2h0" in out
+    assert "claude seven_day 19% used of a 7-day window · resets in ~3d" in out
+    assert "as of 12m ago" in out
+    assert "stores no quota" not in out
+    assert "97%" not in out
 
 
 def test_bad_since_value_is_reported_clearly(burn_home: Path) -> None:

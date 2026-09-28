@@ -231,9 +231,9 @@ class UsageEvent:
 class QuotaSnapshot:
     """A point-in-time reading of how much of a rate-limit window is consumed.
 
-    Codex writes these to its own logs, so they are ``EXACT``. Claude Code does
-    not persist quota anywhere on disk, so its readings are ``ESTIMATED`` from
-    local timestamps until the user opts into an authenticated lookup.
+    ``EXACT`` readings are the provider's own figures: Codex writes them to its
+    logs, and Claude's come from the desktop app's plan records or from Claude
+    Code's status line. ``ESTIMATED`` is anything derived here instead.
     """
 
     provider: str

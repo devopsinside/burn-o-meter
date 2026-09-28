@@ -10,6 +10,7 @@ import argparse
 import json
 import stat
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from rich.console import Console
@@ -39,7 +40,7 @@ from .report import (
 )
 from .safety import CREDENTIAL_FILENAMES, CREDENTIAL_SUFFIXES, redact_path
 from .scan import reprice, scan
-from .snapshot import write_snapshot
+from .snapshot import _window_already_reset, write_snapshot
 from .store import Store
 
 console = Console()
@@ -91,6 +92,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 # Detected but unreadable. Saying "ready" here would imply this
                 # provider's usage is included in the totals, which it is not.
                 status = "[yellow]detected — parser not yet built[/yellow]"
+            elif not found and getattr(adapter, "missing_hint", None):
+                # Not a fault: a source that exists only once it is switched on.
+                status = f"[dim]off — {adapter.missing_hint}[/dim]"
             elif not found:
                 status = "[yellow]no logs found[/yellow]"
             else:
@@ -494,7 +498,14 @@ def cmd_today(args: argparse.Namespace) -> int:
         since = parse_since("today")
         by_model = aggregate(store, "model", since=since)
         block_report = blocks(store)
-        quota_rows = list(store.latest_quota("codex"))
+        quota_rows = [
+            r
+            for provider in ("claude", "codex")
+            for r in store.latest_quota(provider)
+            # A reading from a window that has since rolled over describes nothing
+            # current, and the snapshot drops it for the same reason.
+            if not _window_already_reset(r["resets_at"], r["observed_at"])
+        ]
 
     if args.json:
         console.print_json(
@@ -540,22 +551,37 @@ def cmd_today(args: argparse.Namespace) -> int:
         )
         if ratio is not None:
             console.print(
-                f"  [dim]{ratio:.1f}x your median window. Claude publishes no token "
-                f"limit for subscription plans and stores no quota locally, so this "
-                f"compares against your own history rather than inventing a "
-                f"percentage.[/dim]"
+                f"  [dim]{ratio:.1f}x your median window. Anthropic publishes no token "
+                f"limit for subscription plans, so this compares against your own "
+                f"history; the percentage below is the service's own.[/dim]"
             )
 
     if quota_rows:
         console.print()
+        now = datetime.now(UTC)
         for r in quota_rows:
-            days = (r["window_minutes"] or 0) / 1440
-            console.print(
-                f"  [bold]codex {r['window_name']}[/bold]  {r['used_percent']:.0f}% used"
-                f" of a {days:.0f}-day window · plan {r['plan_type']}"
-                f"   [green]exact[/green] [dim](reported by Codex itself)[/dim]"
-            )
+            console.print(_quota_line(r, now))
     return 0
+
+
+def _quota_line(r, now: datetime) -> str:
+    """One rate-limit reading, with its age and where it came from."""
+    minutes = r["window_minutes"] or 0
+    span = f"{minutes // 60}-hour" if minutes < 1440 else f"{minutes // 1440}-day"
+    parts = [f"  [bold]{r['provider']} {r['window_name']}[/bold]  {r['used_percent']:.0f}% used"]
+    parts.append(f" of a {span} window")
+    if r["resets_at"]:
+        left = datetime.fromisoformat(r["resets_at"].replace("Z", "+00:00")) - now
+        parts.append(f" · resets in ~{_age(left.total_seconds())}")
+    if r["plan_type"]:
+        parts.append(f" · plan {r['plan_type']}")
+    observed = datetime.fromisoformat(r["observed_at"].replace("Z", "+00:00"))
+    # Claude's figures arrive only when something reports them, so the age is
+    # part of the reading: 20% an hour ago is not 20% now.
+    parts.append(f" · as of {_age((now - observed).total_seconds())} ago")
+    who = "Claude" if r["provider"] == "claude" else "Codex itself"
+    parts.append(f"   [green]exact[/green] [dim](reported by {who})[/dim]")
+    return "".join(parts)
 
 
 def cmd_blocks(args: argparse.Namespace) -> int:
@@ -586,11 +612,12 @@ def cmd_blocks(args: argparse.Namespace) -> int:
     console.print(blocks_table(report, limit=args.limit or 10))
     console.print(
         "\n[dim]'vs your median' compares a window against your own completed windows.\n"
-        "There is deliberately no 'percent of limit': Anthropic publishes no token limit for\n"
-        "subscription plans and Claude Code stores no quota on disk, so any percentage would\n"
-        "be invented. Time left is derived from the first request in the window — Anthropic\n"
+        "There is deliberately no 'percent of limit' column: Anthropic publishes no token\n"
+        "limit for subscription plans, so a percentage computed from tokens would be\n"
+        "invented. Time left is derived from the first request in the window — Anthropic\n"
         "does not document the anchor, so treat it as accurate to within an hour.\n"
-        "Codex quota is exact and shown by `burn-o-meter today`.[/dim]"
+        "The service's own percentages, for Claude and Codex, are shown by\n"
+        "`burn-o-meter today`.[/dim]"
     )
     return 0
 
@@ -663,6 +690,63 @@ def cmd_agent(args: argparse.Namespace) -> int:
         )
     console.print("  [dim]remove with: burn-o-meter agent uninstall[/dim]")
     return 0
+
+
+def cmd_statusline(args: argparse.Namespace) -> int:
+    """Claude Code's status line hook, and the commands that install it."""
+    from . import statusline
+
+    action = getattr(args, "statusline_command", None)
+    if action is None:
+        # Invoked by Claude Code on every turn. Prints only the status line.
+        return statusline.main(then=args.then)
+
+    if action == "status":
+        installed = statusline.is_installed()
+        console.print(
+            "[green]installed[/green]" if installed else "[dim]not installed[/dim]",
+            f"[dim]in {redact_path(statusline.claude_settings_path())}[/dim]",
+        )
+        capture = statusline.capture_path()
+        if capture.exists():
+            age = datetime.now(UTC).timestamp() - capture.stat().st_mtime
+            console.print(f"  last reading captured {_age(age)} ago")
+        elif installed:
+            console.print(
+                "  [dim]no reading yet — it arrives with your next Claude Code turn[/dim]"
+            )
+        return 0
+
+    try:
+        if action == "install":
+            from .snapshot import engine_argv
+
+            outcome = statusline.install(engine_argv())
+        else:
+            outcome = statusline.uninstall()
+    except (OSError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        return 1
+    console.print(f"{outcome} [dim]({redact_path(statusline.claude_settings_path())})[/dim]")
+    if action == "install" and outcome != "already installed":
+        console.print(
+            "  Claude Code now passes its live rate-limit figures here on every turn.\n"
+            "  [dim]Only the percentages and reset times are kept. Takes effect in new\n"
+            "  Claude Code sessions; remove with: burn-o-meter statusline uninstall[/dim]"
+        )
+    return 0
+
+
+def _age(seconds: float) -> str:
+    minutes = int(seconds // 60)
+    if minutes < 1:
+        return "under a minute"
+    if minutes < 60:
+        return f"{minutes}m"
+    if minutes < 48 * 60:
+        return f"{minutes // 60}h{minutes % 60:02d}m"
+    # "342h32m" makes the reader do the division.
+    return f"{minutes // 1440}d{minutes % 1440 // 60}h"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -749,6 +833,23 @@ def build_parser() -> argparse.ArgumentParser:
     ag_sub.add_parser("uninstall", help="stop and remove background scanning")
     ag_sub.add_parser("status", help="show whether background scanning is active")
     ag.set_defaults(func=cmd_agent)
+
+    sl = sub.add_parser(
+        "statusline",
+        help="capture Claude Code's live rate limits (run by Claude Code as its status line)",
+    )
+    sl.add_argument(
+        "--then",
+        metavar="COMMAND",
+        help="another status line command to run with the same input and print instead",
+    )
+    sl_sub = sl.add_subparsers(dest="statusline_command")
+    sl_sub.add_parser(
+        "install", help="set it as Claude Code's status line, keeping any existing one"
+    )
+    sl_sub.add_parser("uninstall", help="remove it, restoring any status line it wrapped")
+    sl_sub.add_parser("status", help="show whether it is installed and when it last reported")
+    sl.set_defaults(func=cmd_statusline)
 
     return p
 

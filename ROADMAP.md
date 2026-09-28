@@ -117,9 +117,12 @@ colour needs no permission and cannot interrupt, and would arrive no later.
 
 Measured against 30 days of real plan-usage history: a fixed 90% threshold caught
 every run-out with the fewest false alarms, and a projection rule did no better. The
-finding that matters more is a ceiling no rule can beat — Claude records usage about
-every 15 minutes, so any warning arrives roughly a quarter of an hour before the
-limit, not earlier.
+finding that mattered more was a ceiling no rule could beat — the desktop app
+records usage about every 15 minutes, so any warning arrived roughly a quarter of an
+hour before the limit, not earlier. That ceiling belonged to the source: with the
+status line hook, Claude Code reports the figure on every turn, so the colour
+changes on the turn that crosses 90%. The threshold has not yet been re-measured
+against the live source.
 
 Still to come, and each only once the first has been lived with: the weekly window,
 and dollar budgets on an API key.
