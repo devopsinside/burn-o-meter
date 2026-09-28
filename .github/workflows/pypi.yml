@@ -1,0 +1,51 @@
+# Publishes a GitHub release's own sdist and wheel to PyPI.
+#
+# Trusted Publishing: PyPI trusts this workflow, in this repository and
+# environment, through a short-lived OIDC token. No API token exists anywhere to
+# be leaked or rotated.
+#
+# The files uploaded are the ones already attached to the release, not a rebuild,
+# so PyPI and the release serve byte-identical artifacts. Run it after the release
+# exists (RELEASING.md step 8). Like a GitHub release, a PyPI version is immutable:
+# a file, once uploaded, can never be replaced.
+name: PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, e.g. v0.6.5 (the release must exist)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/burn-o-meter/
+    permissions:
+      contents: read
+      id-token: write  # the OIDC token Trusted Publishing exchanges; nothing else
+    steps:
+      - name: Download the release's sdist and wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Through the environment, never interpolated into the script: an
+          # expression is expanded before the shell sees the text.
+          TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "not a release tag: $TAG"; exit 1; }
+          version="${TAG#v}"
+          mkdir dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern "burn_o_meter-$version.tar.gz" \
+            --pattern "burn_o_meter-$version-py3-none-any.whl"
+          # Exactly the two files for this version, and nothing else.
+          test -f "dist/burn_o_meter-$version.tar.gz"
+          test -f "dist/burn_o_meter-$version-py3-none-any.whl"
+          test "$(find dist -type f | wc -l)" -eq 2
+
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2

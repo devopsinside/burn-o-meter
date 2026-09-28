@@ -548,3 +548,22 @@ def test_the_app_knows_every_cost_basis_the_engine_can_write() -> None:
         f"the macOS app has no case for {sorted(missing)}, so it would label "
         "those events 'no published rate' — teach Models.swift about them"
     )
+
+
+def test_the_pypi_page_has_no_link_that_breaks_on_pypi() -> None:
+    """PyPI renders the package's readme as the project page, where a relative
+    link or image resolves against pypi.org and breaks. That is why the page is
+    its own short file - and every link in it has to stay absolute."""
+    import re
+    import tomllib
+
+    root = Path(__file__).resolve().parent.parent
+    meta = tomllib.loads((root / "pyproject.toml").read_text())["project"]
+    assert meta["readme"] == "docs/pypi.md"
+
+    page = (root / "docs" / "pypi.md").read_text()
+    targets = re.findall(r"\]\(([^)]+)\)", page) + re.findall(r'src="([^"]+)"', page)
+    assert targets, "the page lost its links entirely"
+    relative = [t for t in targets if not t.startswith("https://")]
+    assert not relative, f"relative links break on pypi.org: {relative}"
+    assert "pipx install burn-o-meter" in page

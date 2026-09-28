@@ -51,6 +51,10 @@ gh release create vX.Y.Z \
 
 # 7. Add the bottle block, with root_url pointing at the release just made.
 $EDITOR Formula/burn-o-meter.rb && git commit -am "Add vX.Y.Z bottles" && git push
+
+# 8. Publish the release's own sdist and wheel to PyPI (Trusted Publishing; no
+#    token). Uploads the files attached in step 6, so PyPI matches the release.
+gh workflow run pypi.yml -f tag=vX.Y.Z
 ```
 
 ## Verify
@@ -60,6 +64,10 @@ brew untap devopsinside/burn-o-meter; brew uninstall burn-o-meter
 brew tap devopsinside/burn-o-meter https://github.com/devopsinside/burn-o-meter
 brew install devopsinside/burn-o-meter/burn-o-meter   # must say "Pouring", not "Building"
 brew test devopsinside/burn-o-meter/burn-o-meter
+```
+
+```bash
+pipx install --force burn-o-meter && burn-o-meter --version   # from PyPI
 ```
 
 Pouring a bottle skips the source download, so a wrong `sha256` on the source will

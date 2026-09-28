@@ -6,16 +6,22 @@ build-backend = "hatchling.build"
 name = "burn-o-meter"
 version = "0.6.4"
 description = "An honest meter for AI coding-agent usage, cost and quota. Local-first."
-readme = "README.md"
+# PyPI renders this as the project page, where the README's relative links and
+# images would all break; it is a short page with absolute links instead.
+readme = "docs/pypi.md"
 license = "MIT"
 requires-python = ">=3.11"
-keywords = ["claude-code", "codex", "llm", "tokens", "cost", "usage", "menu-bar"]
+keywords = ["claude-code", "codex", "anthropic", "openai", "ollama", "llm", "tokens", "cost", "usage", "rate-limits", "menu-bar"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = [
@@ -39,7 +45,10 @@ burnometer = "burnometer.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/devopsinside/burn-o-meter"
+Documentation = "https://github.com/devopsinside/burn-o-meter#readme"
 Issues = "https://github.com/devopsinside/burn-o-meter/issues"
+Changelog = "https://github.com/devopsinside/burn-o-meter/blob/main/CHANGELOG.md"
+Security = "https://github.com/devopsinside/burn-o-meter/blob/main/SECURITY.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/burnometer"]
