@@ -118,6 +118,7 @@ Two commands worth knowing:
 
 ```bash
 burn-o-meter doctor --security      # every file read, every network egress point
+/Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --help          # every option
 /Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --dump          # what the UI sees, as JSON
 /Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --check-layout  # layout fits on 5 display sizes
 /Applications/burn-o-meter.app/Contents/MacOS/burn-o-meter --probe-popover # shows the popover once, reports its real size

@@ -621,6 +621,39 @@ func dumpSnapshotAndExit() -> Never {
     exit(0)
 }
 
+/// Every flag the app answers to. Anything else starting with `--` is refused
+/// rather than ignored: an unknown flag used to fall through to launching the
+/// app, so `--help` quietly put a second meter in the menu bar.
+let knownFlags: [(flag: String, help: String)] = [
+    ("--dump", "print what the UI sees, as JSON"),
+    ("--check-layout", "check the popover fits five display sizes (CI)"),
+    ("--check-freshness", "check quota freshness and menu bar colour rules (CI)"),
+    ("--probe-popover", "open the real popover once and report its size"),
+    ("--probe-menubar", "report the status item's real geometry"),
+    ("--probe-alignment", "report glyph and title alignment [output path]"),
+    ("--preview-menubar-icon", "render the menu bar glyph to <path>"),
+    ("--enable-login-item", "register launch at login"),
+    ("--disable-login-item", "unregister launch at login"),
+    ("--hold", "keep a probe open longer"),
+]
+
+if CommandLine.arguments.contains("--help") || CommandLine.arguments.contains("-h") {
+    print("burn-o-meter \(Preferences.version) — run with no arguments to start the menu bar app.\n")
+    for (flag, help) in knownFlags {
+        print("  \(flag.padding(toLength: 24, withPad: " ", startingAt: 0))\(help)")
+    }
+    exit(0)
+}
+
+let unknownFlags = CommandLine.arguments.dropFirst()
+    .filter { arg in arg.hasPrefix("--") && !knownFlags.contains(where: { $0.flag == arg }) }
+if !unknownFlags.isEmpty {
+    FileHandle.standardError.write(
+        "unknown option \(unknownFlags.joined(separator: " ")) — see --help\n".data(using: .utf8)!
+    )
+    exit(2)
+}
+
 if CommandLine.arguments.contains("--dump") {
     dumpSnapshotAndExit()
 }

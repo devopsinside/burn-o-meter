@@ -121,4 +121,9 @@ printf '\n'
 burn-o-meter today || true
 printf '\n'
 note "burn-o-meter today | models | daily | doctor"
+# Not done for you: it edits Claude Code's own settings, which is yours to decide.
+if [ -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" ] \
+   && burn-o-meter statusline status 2>/dev/null | grep -q '^not installed'; then
+  note "live Claude rate limits from Claude Code: burn-o-meter statusline install"
+fi
 note "remove everything with: ./uninstall.sh"

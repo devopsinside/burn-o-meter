@@ -52,6 +52,16 @@ sleep 1
 rm -rf "$APP" macos/build/burn-o-meter.app
 ok "removed"
 
+# Before the command line tool goes: it is what Claude Code's status line runs,
+# and a status line pointing at a deleted binary prints an error on every turn.
+step "Claude Code status line"
+if command -v burn-o-meter >/dev/null 2>&1 \
+   && outcome=$(burn-o-meter statusline uninstall 2>/dev/null); then
+  ok "${outcome%% (*}"
+else
+  note "nothing to remove"
+fi
+
 step "Command line tool"
 command -v brew >/dev/null 2>&1 && { brew uninstall burn-o-meter >/dev/null 2>&1 || true; \
                                      brew untap devopsinside/burn-o-meter >/dev/null 2>&1 || true; }
@@ -76,4 +86,4 @@ else
 fi
 
 step "Done"
-note "your Claude Code and Codex logs were never modified"
+note "your agents' logs were never modified"
