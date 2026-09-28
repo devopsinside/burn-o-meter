@@ -8,6 +8,22 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Changed
+
+- **The README leads with the install that gives you the menu bar app.** It now
+  opens with `./install.sh` — app, command line, background scanning and login
+  item in one command — and puts `pipx install burn-o-meter` second, labelled as
+  the command line only. A reader who took the one-liner and waited for a menu bar
+  icon that could never appear was the likeliest first experience.
+
+### Fixed
+
+- **`install.sh` told you to look for 🔥 in the menu bar.** The status item has
+  shown the meter-and-flame glyph since 0.6.2, so the one thing it said to look for
+  was not there.
+
 ## [0.6.5] — 2026-09-29
 
 ### Added

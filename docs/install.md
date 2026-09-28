@@ -1,7 +1,8 @@
 # Installing burn-o-meter
 
-**Most people want one command**, which does the CLI, the app, the login item and
-background scanning together:
+**On a Mac, most people want one command.** It installs the menu bar app, the
+command line tool, background scanning and starting at login, and the meter
+appears in your menu bar as soon as it finishes:
 
 ```bash
 git clone https://github.com/devopsinside/burn-o-meter

@@ -100,7 +100,7 @@ if [ "$WANT_APP" = 1 ]; then
     pkill -f '/Applications/burn-o-meter.app/Contents/MacOS/' 2>/dev/null || true
     sleep 1
     open /Applications/burn-o-meter.app
-    ok "running — look for 🔥 in your menu bar"
+    ok "running — look for the meter in your menu bar"
   fi
 fi
 

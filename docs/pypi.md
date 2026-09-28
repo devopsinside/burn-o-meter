@@ -20,8 +20,14 @@ burn-o-meter scan && burn-o-meter today
 burn-o-meter statusline install   # Claude's rate-limit %, live from Claude Code
 ```
 
-Requires Python 3.11+. The macOS menu bar app is a separate, optional build — see
-[installing](https://github.com/devopsinside/burn-o-meter/blob/main/docs/install.md).
+Requires Python 3.11+. **This installs the command line tool only** — no app
+appears in your menu bar. For the macOS menu bar app, clone the repository and run
+one command, which installs both:
+
+```bash
+git clone https://github.com/devopsinside/burn-o-meter
+cd burn-o-meter && ./install.sh
+```
 
 ## What it gets right
 
