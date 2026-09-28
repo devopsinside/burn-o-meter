@@ -8,7 +8,7 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
-## [0.6.4] — 2026-09-28
+## [0.6.4] — 2026-09-29
 
 ### Added
 
