@@ -23,7 +23,7 @@ read what it wrote, *then* write the adapter.
 
 ---
 
-## Shipped — through v0.6.4
+## Shipped — through v0.6.5
 
 | | |
 |---|---|
@@ -31,9 +31,9 @@ read what it wrote, *then* write the adapter.
 | **Quota** | Claude (exact — live from Claude Code's status line, or the desktop app's plan records), Codex (exact) |
 | **Pricing** | 329 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
-| **Quality** | 411 tests · security guarantees enforced in CI · reconciled against real logs |
+| **Quality** | 412 tests · security guarantees enforced in CI · reconciled against real logs |
 | **Analytics** | per-model cost, cache hit rate, effective $/Mtok, cache savings, rolling windows |
-| **Install** | `./install.sh` does everything · Homebrew tap with prebuilt bottles · pipx · uv · a release archive needing no toolchain |
+| **Install** | `pipx install burn-o-meter` (PyPI) · `./install.sh` does everything · Homebrew tap with prebuilt bottles · uv · a release archive |
 | **macOS app** | app icon · popover sized to the display it opens on · four menu bar title widths · limit reading turns red at 90% |
 
 ---
@@ -186,7 +186,6 @@ to their service using subscription credentials, and enforcement lands on the
 - A signed, notarised app and a Homebrew **cask** for it (needs an Apple Developer
   account). The CLI already installs via a Homebrew **tap** with prebuilt bottles;
   it is the `.app` that cannot be distributed without notarisation
-- Publishing to PyPI
 - Windows and Linux tray apps — the engine is already portable; only the shell is not
 
 ## Helping

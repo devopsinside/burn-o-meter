@@ -32,8 +32,15 @@ sudo xcodebuild -license accept
 
 ### The CLI
 
-Not on PyPI yet. Any of these puts `burn-o-meter` on your PATH, so it works from
-any directory.
+Any of these puts `burn-o-meter` on your PATH, so it works from any directory.
+
+**pipx or uv**, from PyPI — needs nothing but Python 3.11+:
+
+```bash
+pipx install burn-o-meter
+# or
+uv tool install burn-o-meter
+```
 
 **Homebrew:**
 
@@ -49,28 +56,22 @@ still asks, `brew trust --formula devopsinside/burn-o-meter/burn-o-meter`
 grants exactly that much. Prefer it over `brew trust devopsinside/burn-o-meter`,
 which would trust everything this tap ever ships.
 
-Homebrew builds the formula from source, so it needs Apple's Command Line Tools
-(`xcode-select --install`). If you would rather not install those, use pipx or uv
-below — nothing here needs a compiler; the requirement is Homebrew's, not
-burn-o-meter's.
+Homebrew pours a prebuilt bottle, so nothing is compiled. On a macOS version with
+no bottle it builds from source instead, which needs Apple's Command Line Tools
+(`xcode-select --install`) — Homebrew's requirement, not burn-o-meter's.
 
-**pipx or uv**, straight from the repository:
+**The development version**, straight from the repository (needs git):
 
 ```bash
 pipx install git+https://github.com/devopsinside/burn-o-meter
-# or
-uv tool install git+https://github.com/devopsinside/burn-o-meter
 ```
 
-**No developer tools on the machine?** A `git+https://` URL needs git, and on a
-fresh Mac git arrives with Apple's Command Line Tools — so all three commands
-above want a toolchain burn-o-meter itself never uses. Installing the release
-archive directly needs none of it:
+**A specific release without PyPI**, from the archive attached to it:
 
 ```bash
-pipx install https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.4/burn_o_meter-0.6.4.tar.gz
+pipx install https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.5/burn_o_meter-0.6.5.tar.gz
 # or
-uv tool install https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.4/burn_o_meter-0.6.4.tar.gz
+uv tool install https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.5/burn_o_meter-0.6.5.tar.gz
 ```
 
 That URL pins a version; check [releases](https://github.com/devopsinside/burn-o-meter/releases)

@@ -8,7 +8,16 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
-## [Unreleased]
+## [0.6.5] — 2026-09-29
+
+### Added
+
+- **On PyPI.** `pipx install burn-o-meter` (or `uv tool install burn-o-meter`) is
+  now the whole install for the CLI, needing neither git nor a compiler. Published
+  through Trusted Publishing — PyPI trusts this repository's workflow directly, so
+  no upload token exists — and the files on PyPI are the ones attached to the
+  GitHub release, not a separate build. PyPI gets a short project page of its own,
+  because the README's relative links and images all break there.
 
 ### Fixed
 
@@ -495,6 +504,7 @@ without provenance is the thing this project exists to avoid.
 First alpha. Claude Code and Codex adapters, TTL-aware pricing, SQLite storage,
 the macOS menu bar app, and the security guarantees with their enforcing tests.
 
+[0.6.5]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.5
 [0.6.4]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.4
 [0.6.3]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.3
 [0.6.2]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.2

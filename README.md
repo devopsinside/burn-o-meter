@@ -4,9 +4,16 @@
 and rate limits — all read from files already on your machine. No account, no
 telemetry, nothing sent anywhere.
 
-> **Status: alpha (v0.6.4).** The CLI and the macOS menu bar app both work end to
-> end for Claude Code and Codex. Tested on macOS 14+; the CLI is portable but
-> Windows and Linux are not yet verified.
+> **Status: alpha (v0.6.5).** The CLI and the macOS menu bar app both work end to
+> end for Claude Code, Codex, OpenCode and Kimi Code. Tested on macOS 14+; the CLI
+> is portable but Windows and Linux are not yet verified.
+
+```bash
+pipx install burn-o-meter          # or: uv tool install burn-o-meter
+burn-o-meter scan && burn-o-meter today
+```
+
+Homebrew, the menu bar app and the one-command setup are under [Install](#install).
 
 `burn-o-meter` reads the logs your agents already write to disk and tells you what
 they actually cost — tokens, dollars, cache efficiency, and how much of your rate
@@ -115,16 +122,16 @@ your agents' own logs are never touched either way.
 
 ### The CLI
 
-Requires **Python 3.11+**. Not on PyPI yet.
+Requires **Python 3.11+**.
 
 ```bash
 # Homebrew — pours a prebuilt bottle, no compiler needed
 brew tap devopsinside/burn-o-meter https://github.com/devopsinside/burn-o-meter
 brew install devopsinside/burn-o-meter/burn-o-meter
 
-# or pipx / uv
-pipx install git+https://github.com/devopsinside/burn-o-meter
-uv tool install git+https://github.com/devopsinside/burn-o-meter
+# or pipx / uv, from PyPI
+pipx install burn-o-meter
+uv tool install burn-o-meter
 ```
 
 ### ⚠️ The menu bar app is NOT installed by any of those
