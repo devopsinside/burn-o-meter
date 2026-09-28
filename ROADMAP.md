@@ -23,15 +23,15 @@ read what it wrote, *then* write the adapter.
 
 ---
 
-## Shipped — through v0.6.3
+## Shipped — through v0.6.4
 
 | | |
 |---|---|
-| **Agents** | Claude Code, Codex CLI, OpenCode, Kimi Code (the last two route to anything, including local models) |
-| **Quota** | Claude (exact, via the desktop app's plan records), Codex (exact) |
+| **Agents** | Claude Code (subagents included), Codex CLI, OpenCode, Kimi Code (the last three route to other providers, including local models) |
+| **Quota** | Claude (exact — live from Claude Code's status line, or the desktop app's plan records), Codex (exact) |
 | **Pricing** | 329 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
-| **Quality** | 358 tests · security guarantees enforced in CI · reconciled against real logs |
+| **Quality** | 411 tests · security guarantees enforced in CI · reconciled against real logs |
 | **Analytics** | per-model cost, cache hit rate, effective $/Mtok, cache savings, rolling windows |
 | **Install** | `./install.sh` does everything · Homebrew tap with prebuilt bottles · pipx · uv · a release archive needing no toolchain |
 | **macOS app** | app icon · popover sized to the display it opens on · four menu bar title widths · limit reading turns red at 90% |

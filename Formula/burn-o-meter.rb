@@ -7,20 +7,10 @@ class BurnOMeter < Formula
   # exists, so bottles can be built before any release — which matters because
   # releases are immutable and assets attach only at creation. Sourcing from a
   # release asset forces bottles into a second release; this way one holds all.
-  url "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/v0.6.3.tar.gz"
+  url "https://github.com/devopsinside/burn-o-meter/archive/refs/tags/v0.6.4.tar.gz"
   sha256 "78556ed53dab161966cdbdd118de9a706cd29eceba9a6d6b24afa3dbdb1f98a1"
 
-  bottle do
-    root_url "https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.3"
-    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "996b6ccb1da78ae4eee5e1349091a3fd46b37f823cce248afad752b70aba368d"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "9cdecda8f355525f641c86e66a2121d398a149f1fc936ca59ffe02025c9a23f3"
-    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "ce2ce48e29b1bd31d788e3caf410ed5ae482a2ae2eadab20be5f2270dc825cba"
-  end
-
-
-
   license "MIT"
-
 
   depends_on "python@3.14"
 
@@ -43,7 +33,6 @@ class BurnOMeter < Formula
     url "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz"
     sha256 "edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36"
   end
-
 
   def install
     virtualenv_install_with_resources
@@ -71,6 +60,10 @@ class BurnOMeter < Formula
         brew services start burn-o-meter   # the Homebrew way
         burn-o-meter agent install         # the built-in way
 
+      For Claude's rate-limit percentage live, as of your last Claude Code turn
+      (it sets Claude Code's status line, keeping any you already have):
+        burn-o-meter statusline install
+
       This formula installs the command line tool only -- nothing appears in your
       menu bar. The app is a separate, optional build, because an unsigned app
       cannot ship through Homebrew without a Gatekeeper warning:
@@ -85,5 +78,15 @@ class BurnOMeter < Formula
 
   test do
     assert_match version.to_s, shell_output("#{bin}/burn-o-meter --version")
+
+    # The status line hook: keeps the rate limits, and nothing else Claude Code
+    # sends beside them.
+    ENV["BURNOMETER_HOME"] = (testpath/"home").to_s
+    payload = '{"cwd":"/Users/x/secret-project",' \
+              '"rate_limits":{"five_hour":{"used_percentage":42,"resets_at":2000000000}}}'
+    assert_equal "5h 42%", pipe_output("#{bin}/burn-o-meter statusline", payload).strip
+    capture = (testpath/"home/claude-rate-limits.json").read
+    assert_match "42", capture
+    refute_match "secret-project", capture
   end
 end

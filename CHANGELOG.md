@@ -8,7 +8,7 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
-## [Unreleased]
+## [0.6.4] — 2026-09-28
 
 ### Added
 
@@ -18,8 +18,10 @@ without provenance is the thing this project exists to avoid.
   burn-o-meter, which keeps the two percentages and their reset times, discards the
   rest of the payload (working directory, transcript path, session id), and prints
   `5h 43% · 7d 19%` as the status line. An existing status line is kept and still
-  shown; `uninstall` restores it. The reset time is the service's own rather than
-  derived. Found because the menu bar read **0%** on a window Claude Code had taken
+  shown; `uninstall` restores it, and so does `./uninstall.sh`, so removing
+  burn-o-meter never leaves Claude Code calling a deleted binary. Opt-in:
+  `./install.sh` suggests it rather than editing Claude Code's settings for you.
+  The reset time is the service's own rather than derived. Found because the menu bar read **0%** on a window Claude Code had taken
   to **43%**: the desktop app's last sample predated the window, and it wrote no
   other for over half an hour.
 - **`today` shows Claude's percentage**, with its age and reset time, alongside
@@ -45,6 +47,10 @@ without provenance is the thing this project exists to avoid.
   It is now *not metered*, like the same model through OpenCode or Kimi Code.
   Verified by running Codex 0.156 against Ollama; sessions already scanned are
   re-read once on upgrade and corrected in place.
+- **Any unrecognised option started a second copy of the app.** The app treated
+  a flag it did not know as no flag at all, so `burn-o-meter.app/…/burn-o-meter
+  --help` put a second meter in the menu bar and never returned. `--help` now
+  lists the options, and an unknown one exits with an error.
 - **A reset time was claimed for a window nobody had opened.** With the five-hour
   figure at 0%, the gap between two idle desktop samples was taken for first use,
   and a reset five hours after it was reported for a window that did not exist.
@@ -481,6 +487,7 @@ without provenance is the thing this project exists to avoid.
 First alpha. Claude Code and Codex adapters, TTL-aware pricing, SQLite storage,
 the macOS menu bar app, and the security guarantees with their enforcing tests.
 
+[0.6.4]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.4
 [0.6.3]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.3
 [0.6.2]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.2
 [0.6.1]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.1
