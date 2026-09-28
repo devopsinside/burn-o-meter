@@ -204,3 +204,49 @@ def test_reasoning_tokens_are_inside_output_not_additional():
         total["input_tokens"] + total["output_tokens"] + total["reasoning_output_tokens"]
         != total["total_tokens"]
     ), "reasoning must NOT be additive for Codex"
+
+
+# -- pointed at a local model -------------------------------------------------
+#
+# Recorded shape of Codex 0.156 run with `--oss --local-provider ollama`: the
+# provider is named in session_meta, rate_limits arrive with every window null,
+# and a token_usage_record restates each response's usage beside token_count.
+
+
+@pytest.fixture
+def local(adapter: CodexAdapter):
+    return adapter.parse(FIXTURES / "local.jsonl", FIXTURES)
+
+
+def test_the_serving_provider_is_recorded(session, local) -> None:
+    assert {e.upstream_provider for e in session.events} == {"openai"}
+    assert [e.upstream_provider for e in local.events] == ["ollama"]
+    assert local.events[0].model == "qwen3:0.6b"
+
+
+def test_a_local_model_is_not_metered_rather_than_unpriced(local) -> None:
+    """`unpriced` says the rate is unknown; for a model on the user's own
+    hardware the truth is that no rate exists. Codex's Ollama sessions were
+    recorded as the former until the provider was read."""
+    from burnometer.models import CostBasis
+    from burnometer.pricing import load_catalog
+    from burnometer.pricing.calculator import price_events
+
+    [event] = price_events(local.events, load_catalog(), subscription=None)
+    assert event.cost_basis is CostBasis.NOT_METERED
+    assert event.cost_usd is None
+
+
+def test_the_restated_usage_record_is_not_counted_twice(local) -> None:
+    """token_usage_record carries the same figures as token_count. Reading both
+    would double the session, the trap Kimi's wire log set too."""
+    assert len(local.events) == 1
+    assert local.events[0].tokens.input == 2050
+    assert local.events[0].tokens.output == 83
+    assert local.integrity_checks == 1
+    assert local.integrity_failures == 0
+
+
+def test_null_rate_limit_windows_are_not_readings_of_zero(local) -> None:
+    """A local provider has no plan limits, and says so with nulls."""
+    assert local.quotas == []

@@ -256,3 +256,82 @@ def test_migration_is_idempotent(tmp_path: Path) -> None:
         assert store.schema_version == first
         cols = {r[1] for r in store._conn.execute("PRAGMA table_info(usage_events)")}
         assert "upstream_provider" in cols
+
+
+def test_a_missing_serving_provider_is_filled_in_with_its_cost(store: Store) -> None:
+    """An event stored before its adapter read the serving provider carries NULL,
+    and a local model with NULL was priced `unpriced`. A rescan that knows the
+    provider repairs both - and counts nothing as new."""
+    stored = _event(
+        "codex:1",
+        provider="codex",
+        model="qwen3:0.6b",
+        cost_usd=None,
+        cost_basis=CostBasis.UNPRICED,
+        price_source="no price",
+    )
+    assert store.upsert_events([stored]) == 1
+
+    known = _event(
+        "codex:1",
+        provider="codex",
+        model="qwen3:0.6b",
+        upstream_provider="ollama",
+        cost_usd=None,
+        cost_basis=CostBasis.NOT_METERED,
+        price_source="served locally by ollama",
+    )
+    assert store.upsert_events([known]) == 0
+
+    row = store.query("SELECT upstream_provider, cost_basis, price_source FROM usage_events")[0]
+    assert tuple(row) == ("ollama", "not_metered", "served locally by ollama")
+
+
+def test_a_recorded_serving_provider_is_never_overwritten(store: Store) -> None:
+    first = _event("k", upstream_provider="anthropic")
+    store.upsert_events([first])
+    store.upsert_events(
+        [_event("k", upstream_provider="ollama", cost_usd=None, cost_basis=CostBasis.NOT_METERED)]
+    )
+    row = store.query("SELECT upstream_provider, cost_basis FROM usage_events")[0]
+    assert tuple(row) == ("anthropic", "api_billed")
+
+
+def test_v3_migration_rereads_codex_rollouts_only(tmp_path: Path) -> None:
+    """Codex skips files it has read, so the provider could not be backfilled
+    without clearing its offsets. Nothing else is re-read, and nothing deleted."""
+    db = tmp_path / "v2.db"
+    with Store.open(db) as store:
+        store.upsert_events([_event("keep")])
+        store._conn.executemany(
+            "INSERT INTO scan_state (path_key, path_label, offset) VALUES (?, ?, ?)",
+            [
+                ("a", "rollout-2026-09-28T17-49-10-abc.jsonl", 900),
+                ("b", "0f3c-session.jsonl", 4096),
+                ("c", "plan-usage-history.json", 0),
+            ],
+        )
+        store._conn.execute("PRAGMA user_version = 2")
+        store._conn.commit()
+
+    with Store.open(db) as store:
+        assert store.schema_version == SCHEMA_VERSION
+        labels = {r[0] for r in store._conn.execute("SELECT path_label FROM scan_state")}
+        assert labels == {"0f3c-session.jsonl", "plan-usage-history.json"}
+        assert store.count_events() == 1
+
+
+def test_a_later_copy_with_more_output_replaces_a_partial_one(store: Store) -> None:
+    """A subagent transcript is written while a message streams, so a scan can
+    store a partial copy; the finished one arrives next scan under the same key.
+    It replaces the partial - tokens and cost together - and a copy with less
+    output never lowers it back."""
+    partial = _event("m", tokens=TokenCounts(input=3, output=49), cost_usd=0.001)
+    final = _event("m", tokens=TokenCounts(input=3, output=17_686), cost_usd=0.44)
+    assert store.upsert_events([partial]) == 1
+    assert store.upsert_events([final]) == 0
+    row = store.query("SELECT output_tokens, cost_usd FROM usage_events")[0]
+    assert tuple(row) == (17_686, 0.44)
+
+    store.upsert_events([partial])
+    assert store.query("SELECT output_tokens FROM usage_events")[0][0] == 17_686

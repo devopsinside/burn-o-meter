@@ -29,7 +29,7 @@ disk. Coding CLIs do; chat GUIs do not.
 
 ### Can it measure local models?
 
-Yes, through OpenCode or Kimi Code. Ollama and the others report token counts per
+Yes, through Codex, OpenCode, Kimi Code or Claude Code. Ollama and the others report token counts per
 request and then discard them — nothing is written to disk, and there is no history
 endpoint to ask — so a local model is measurable only through a harness that records
 it.
@@ -64,6 +64,25 @@ Then add it to `~/.config/opencode/opencode.jsonc`:
 Run anything with `opencode run --model ollama/qwen3:0.6b …` and `burn-o-meter scan`
 picks it up. Tokens are counted exactly as for a hosted model; cost shows as `—`,
 because no one is charging you per token.
+
+**Codex** needs no configuration: `codex exec --oss --local-provider ollama -m
+qwen3:0.6b …` records which provider served the session, so its turns are marked
+*not metered* just like OpenCode's.
+
+**Claude Code** can be pointed at Ollama too (`ANTHROPIC_BASE_URL=http://localhost:11434`),
+and its tokens are counted exactly — they reconcile with Claude Code's own
+per-model totals. But its transcript does not say which server answered, so
+burn-o-meter cannot tell a local `qwen3:0.6b` from a hosted model it has no rate
+for, and shows it as *unpriced*. It will not guess. Say so once, in
+`~/.burn-o-meter/pricing.toml`, and it becomes *not metered*:
+
+```toml
+[models."qwen3:0.6b"]
+input = 0
+output = 0
+```
+
+then `burn-o-meter reprice`.
 
 ### A provider I do not use is showing up. Why?
 

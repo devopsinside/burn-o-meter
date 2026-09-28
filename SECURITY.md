@@ -24,7 +24,7 @@ stopped; and any network call outside `pricing refresh`.
 
 | Asset | Where it lives | Risk if mishandled |
 |---|---|---|
-| Claude Code transcripts | `~/.claude/projects/*/*.jsonl` | Full prompts and completions — pasted secrets, proprietary source, customer data |
+| Claude Code transcripts | `~/.claude/projects/*/*.jsonl`, and each session's `subagents/agent-*.jsonl` | Full prompts and completions — pasted secrets, proprietary source, customer data |
 | Codex CLI rollouts | `~/.codex/sessions/**/rollout-*.jsonl` | The same, plus system prompts |
 | Claude (plan usage) records | `~/Library/Application Support/Claude/plan-usage-history.json` | Plan utilisation and the account's organisation id |
 | Claude (live, via Claude Code) status line input | stdin of `burn-o-meter statusline`, which Claude Code runs on every turn once installed | The working directory, transcript path, session id and model, sent beside the rate limits |
@@ -74,9 +74,12 @@ against the artefacts built on a clean runner
 
 Three independent layers, any one of which is sufficient:
 
-1. **Narrow globs.** `~/.claude/projects/*/*.jsonl` and
+1. **Narrow globs.** `~/.claude/projects/*/*.jsonl`,
+   `~/.claude/projects/*/*/subagents/agent-*.jsonl` and
    `~/.codex/sessions/*/*/*/rollout-*.jsonl` — never a recursive walk, which is
-   what would reach `auth.json` and `*.key`.
+   what would reach `auth.json` and `*.key`. The subagent pattern names the
+   transcript exactly: the same directory holds tool output, a `.meta.json` per
+   agent and the user's notes, and a test plants canaries in each.
 2. **A deny-list** (`safety.is_credential_path`) checked immediately before
    every open: 12 filenames, 8 suffixes, and any path component under `.ssh`,
    `.gnupg`, `.aws`, `.kube`, `.docker`.

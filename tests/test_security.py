@@ -460,7 +460,7 @@ CODEX_FIXTURES = Path(__file__).parent / "fixtures" / "codex"
 
 
 def test_codex_fixtures_really_contain_canaries() -> None:
-    for name in ("session.jsonl", "reset.jsonl", "edge.jsonl"):
+    for name in ("session.jsonl", "reset.jsonl", "edge.jsonl", "local.jsonl"):
         assert CANARY in (CODEX_FIXTURES / name).read_bytes(), f"{name} lost its canaries"
 
 

@@ -31,6 +31,14 @@ the other counters are subsets, not addends:
 * ``reasoning_output_tokens`` sits inside ``output_tokens`` -> display only
 * ``input`` is what remains: fresh, uncached, unwritten tokens
 
+``session_meta.model_provider`` names who served the session — ``openai`` by
+default, ``ollama`` or ``lmstudio`` under ``codex --oss``, or any provider the
+user configured. It becomes ``upstream_provider``, so a local model is recorded
+as *not metered* rather than *unpriced*. Verified by running Codex 0.156 against
+Ollama: the model is named in ``turn_context``, the running total reconciles, and
+the ``token_usage_record`` lines newer versions also write restate the same
+figures per response, so they are deliberately not read.
+
 Unlike Claude Code, these files are parsed whole on every scan rather than
 resumed from an offset. Model attribution comes from the most recent preceding
 ``turn_context``, and each delta needs the previous event's total, so a mid-file
@@ -123,6 +131,11 @@ class CodexAdapter:
 
         session_id: str | None = None
         session_cwd: str | None = None
+        # Who served the tokens. Codex can be pointed at any provider, including
+        # Ollama or LM Studio on this machine, and the model slug alone does not
+        # say which: `qwen3:0.6b` has no rate because it runs on the user's own
+        # hardware, not because the rate is unknown.
+        served_by: str | None = None
         model: str | None = None
         effort: str | None = None
         turn_id: str | None = None
@@ -161,6 +174,7 @@ class CodexAdapter:
                 if kind == "session_meta":
                     session_id = pluck_str(payload, "id", max_len=128)
                     session_cwd = pluck_str(payload, "cwd", max_len=4096)
+                    served_by = pluck_str(payload, "model_provider", max_len=64)
                     continue
 
                 if kind == "turn_context":
@@ -247,6 +261,7 @@ class CodexAdapter:
                         provider=PROVIDER,
                         model=model,
                         effort=effort,
+                        upstream_provider=served_by,
                         ts=ts,
                         tokens=self._to_tokens(delta),
                         session_id=session_id,

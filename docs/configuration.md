@@ -47,3 +47,8 @@ Custom or discounted rates go in `~/.burn-o-meter/pricing.toml`:
 [models."claude-opus-5"]
 input = 4.0        # your negotiated rate
 ```
+
+A rate of zero for both input and output marks a model as **not metered** — no
+per-token charge exists, as for a model served on your own machine. Use it where
+burn-o-meter cannot tell for itself: Claude Code's transcripts do not record which
+server answered, so a local model reached through it otherwise shows as unpriced.

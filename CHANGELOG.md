@@ -27,6 +27,24 @@ without provenance is the thing this project exists to avoid.
 
 ### Fixed
 
+- **Subagent usage was never counted.** Claude Code writes a subagent's turns to
+  `<session>/subagents/agent-<id>.jsonl`, not to the session's transcript — none of
+  their messages appear in the parent file — and the adapter read only the latter.
+  Found by comparing stored totals against Claude Code's own per-session figures.
+  The pattern names the transcript exactly, so the `.meta.json`, tool output and
+  notes beside it stay unread.
+- **…and a subagent message kept its first, partial copy.** Unlike a session's
+  transcript, a subagent's is written while a message streams, so the first copy
+  carries a fraction of the output: across real sessions, 49 output tokens in
+  first copies against 17,686 in the finished ones. The copy with the most output
+  now wins, within a scan and across scans, and a later copy with less never
+  lowers a stored figure.
+- **Codex pointed at a local model was reported as unpriced.** Codex records who
+  served a session (`model_provider`) and the adapter did not read it, so a model
+  on Ollama or LM Studio said "rate unknown" where the truth is "no rate exists".
+  It is now *not metered*, like the same model through OpenCode or Kimi Code.
+  Verified by running Codex 0.156 against Ollama; sessions already scanned are
+  re-read once on upgrade and corrected in place.
 - **A reset time was claimed for a window nobody had opened.** With the five-hour
   figure at 0%, the gap between two idle desktop samples was taken for first use,
   and a reset five hours after it was reported for a window that did not exist.

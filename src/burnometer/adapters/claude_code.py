@@ -1,13 +1,20 @@
-"""Claude Code adapter — ``~/.claude/projects/<project-slug>/<sessionId>.jsonl``.
+"""Claude Code adapter — ``~/.claude/projects/<project-slug>/<sessionId>.jsonl``,
+plus each session's subagent transcripts in ``<sessionId>/subagents/``.
 
 Three properties of this format drive the implementation, all verified against
 real transcripts rather than assumed:
 
 **Records repeat.** Claude Code writes the same assistant message into the
 transcript several times — we measured 2,405 records collapsing to 958 unique,
-with one message appearing seven times. The usage payloads are byte-identical
-across repeats, so ``(requestId, message.id)`` deduplicates safely. Summing
-without it overcounts by roughly 2.5x.
+with one message appearing seven times. In a session's transcript the usage
+payloads are byte-identical across repeats, so ``(requestId, message.id)``
+deduplicates safely. Summing without it overcounts by roughly 2.5x.
+
+In a *subagent's* transcript they are not: a message is written while it
+streams, and early copies carry only part of the output (all 13 repeated
+subagent messages measured, 49 output tokens in the first copies against 17,686
+in the last; input and cache fields identical). Output only rises, so the copy
+with the most output is kept — here, and in the store across scans.
 
 **Cache writes carry a TTL split.** ``usage.cache_creation`` separates
 ``ephemeral_5m_input_tokens`` from ``ephemeral_1h_input_tokens``, and the two
@@ -73,11 +80,18 @@ class ClaudeCodeAdapter:
     )
 
     def sources(self) -> Sequence[LogSource]:
-        # Exactly two levels: <project-slug>/<session>.jsonl. Deliberately not a
-        # recursive walk — ~/.claude/sessions holds *.key files.
+        # Exact shapes, never a recursive walk — ~/.claude/sessions holds *.key
+        # files, and a session's own directory holds tool output and notes.
+        #
+        # Subagents write their turns to <session>/subagents/agent-<id>.jsonl, not
+        # to the session's transcript: measured on real sessions, none of their
+        # messages appear in the parent file. Reading only <session>.jsonl left
+        # every subagent turn out of the totals. The pattern names the transcript
+        # exactly, so the agent-<id>.meta.json beside it is not matched either.
         return [
-            LogSource(root=root / "projects", glob="*/*.jsonl", env_var=self.ENV_VAR)
+            LogSource(root=root / "projects", glob=glob, env_var=self.ENV_VAR)
             for root in resolve_roots(self.ENV_VAR, self.DEFAULT_ROOTS)
+            for glob in ("*/*.jsonl", "*/*/subagents/agent-*.jsonl")
         ]
 
     def parse(
@@ -88,7 +102,7 @@ class ClaudeCodeAdapter:
         project_mode: str = "basename",
     ) -> ParseResult:
         events: list[UsageEvent] = []
-        seen: set[str] = set()
+        seen: dict[str, int] = {}  # event key -> index into events
         lines_read = 0
         lines_skipped = 0
         duplicates = 0
@@ -130,8 +144,17 @@ class ClaudeCodeAdapter:
                     continue
                 if event.event_key in seen:
                     duplicates += 1
+                    # Subagent transcripts write a message while it streams, so
+                    # an early copy can carry a fraction of the final output
+                    # (measured: 49 tokens where the last copy said 17,686).
+                    # Output only ever rises through the copies, so the largest
+                    # is the finished figure; for the session transcript, whose
+                    # copies are identical, this keeps the first as before.
+                    index = seen[event.event_key]
+                    if event.tokens.output > events[index].tokens.output:
+                        events[index] = event
                     continue
-                seen.add(event.event_key)
+                seen[event.event_key] = len(events)
                 events.append(event)
 
         return ParseResult(

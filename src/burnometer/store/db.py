@@ -27,7 +27,7 @@ from typing import Any
 from ..models import CostBasis, QuotaSnapshot, TokenCounts, UsageEvent
 from ..safety import harden_path, secure_dir
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 _SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 __all__ = ["Store", "ScanState", "SCHEMA_VERSION"]
@@ -104,6 +104,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # offsets; clearing them would force a full re-parse of Claude Code and
         # Codex too, for no benefit.
         conn.execute("DELETE FROM usage_events WHERE provider = 'opencode'")
+
+    # v2 -> v3: Codex rows gain the serving provider (``model_provider``), which
+    # is what marks a model served by Ollama or LM Studio as not metered rather
+    # than unpriced. No column changes, and nothing is deleted: upsert_events now
+    # fills a missing provider in place. Codex skips a file it has already read,
+    # though, so its offsets - and only its - are cleared to have each rollout
+    # read once more. They are parsed whole anyway, and dedup by event key keeps
+    # the re-read from adding a single row.
+    if version < 3:
+        conn.execute("DELETE FROM scan_state WHERE path_label LIKE 'rollout-%.jsonl'")
 
     conn.commit()
 
@@ -184,7 +194,8 @@ class Store:
         vanish silently instead of raising — precisely the class of quiet data
         loss this tool exists to avoid.
         """
-        rows = [self._event_row(e) for e in events]
+        events_list = list(events)
+        rows = [self._event_row(e) for e in events_list]
         if not rows:
             return 0
         before = self._conn.total_changes
@@ -202,7 +213,64 @@ class Store:
                 """,
                 rows,
             )
-        return self._conn.total_changes - before
+        inserted = self._conn.total_changes - before
+
+        # One exception to "a stored event never changes": learning who served
+        # it. An adapter that did not read the serving provider stored NULL, and
+        # for a local model that NULL priced the row `unpriced` - "rate unknown"
+        # where the truth is "no rate exists". A rescan by a parser that does
+        # read it fills the gap, together with the cost decided from it. A
+        # provider already recorded is never overwritten.
+        backfill = [
+            (e.upstream_provider, e.cost_usd, e.cost_basis.value, e.price_source, e.event_key)
+            for e in events_list
+            if e.upstream_provider
+        ]
+        if backfill:
+            with self._conn:
+                self._conn.executemany(
+                    """
+                    UPDATE usage_events
+                    SET upstream_provider = ?, cost_usd = ?, cost_basis = ?, price_source = ?
+                    WHERE event_key = ? AND upstream_provider IS NULL
+                    """,
+                    backfill,
+                )
+
+        # The other exception: a later copy of the same event with more output.
+        # Claude Code's subagent transcripts write a message while it streams, so
+        # a scan that lands mid-stream stores a partial copy and the finished
+        # one arrives in the next scan under the same key. Output only rises
+        # between copies; a copy with less is never taken.
+        grown = [
+            (
+                e.tokens.input,
+                e.tokens.output,
+                e.tokens.reasoning,
+                e.tokens.cache_read,
+                e.tokens.cache_write_5m,
+                e.tokens.cache_write_1h,
+                e.cost_usd,
+                e.cost_basis.value,
+                e.price_source,
+                e.event_key,
+                e.tokens.output,
+            )
+            for e in events_list
+        ]
+        with self._conn:
+            self._conn.executemany(
+                """
+                UPDATE usage_events
+                SET input_tokens = ?, output_tokens = ?, reasoning_tokens = ?,
+                    cache_read_tokens = ?, cache_write_5m_tokens = ?,
+                    cache_write_1h_tokens = ?, cost_usd = ?, cost_basis = ?,
+                    price_source = ?
+                WHERE event_key = ? AND output_tokens < ?
+                """,
+                grown,
+            )
+        return inserted
 
     @staticmethod
     def _event_row(e: UsageEvent) -> tuple[Any, ...]:

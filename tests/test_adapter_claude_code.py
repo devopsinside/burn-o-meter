@@ -196,3 +196,82 @@ def test_thinking_tokens_are_a_breakdown_within_output():
     usage = {"output_tokens": 500, "output_tokens_details": {"thinking_tokens": 380}}
     detail = sum(v for v in usage["output_tokens_details"].values() if isinstance(v, int))
     assert detail <= usage["output_tokens"], "thinking tokens are a subset of output"
+
+
+# -- subagents ----------------------------------------------------------------
+#
+# A subagent's turns go to <session>/subagents/agent-<id>.jsonl and nowhere
+# else. Found by comparing stored totals with real sessions: every subagent
+# message was missing from both the parent transcript and the store.
+
+
+def _assistant(msg_id: str, *, sidechain: bool, output: int) -> str:
+    import json
+
+    return (
+        json.dumps(
+            {
+                "type": "assistant",
+                "isSidechain": sidechain,
+                "requestId": f"req_{msg_id}",
+                "sessionId": "sess-sub",
+                "timestamp": "2026-09-28T10:00:00.000Z",
+                "cwd": "/Users/testuser/work/demo-project",
+                "message": {
+                    "model": "claude-opus-5",
+                    "id": msg_id,
+                    "content": [{"type": "text", "text": "CANARY-SUBAGENT-TEXT"}],
+                    "usage": {"input_tokens": 3, "output_tokens": output},
+                },
+            }
+        )
+        + "\n"
+    )
+
+
+@pytest.fixture
+def claude_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    root = tmp_path / "claude"
+    project = root / "projects" / "-Users-testuser-work-demo-project"
+    session_dir = project / "sess-sub" / "subagents"
+    session_dir.mkdir(parents=True)
+    (project / "sess-sub.jsonl").write_text(_assistant("msg_parent", sidechain=False, output=10))
+    (session_dir / "agent-a1b2.jsonl").write_text(
+        # Written while streaming: the first copy has a fraction of the output.
+        _assistant("msg_sub1", sidechain=True, output=5)
+        + _assistant("msg_sub1", sidechain=True, output=200)
+        + _assistant("msg_sub1", sidechain=True, output=200)
+        + _assistant("msg_sub2", sidechain=True, output=300)
+    )
+    # Neighbours the pattern must not reach.
+    (session_dir / "agent-a1b2.meta.json").write_text('{"note": "CANARY-SUBAGENT-META"}')
+    (project / "sess-sub" / "tool-results").mkdir()
+    (project / "sess-sub" / "tool-results" / "out.txt").write_text("CANARY-TOOL-OUTPUT")
+    (project / "memory").mkdir()
+    (project / "memory" / "MEMORY.md").write_text("CANARY-MEMORY-NOTE")
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(root))
+    return root
+
+
+def test_subagent_transcripts_are_read_and_nothing_beside_them(
+    adapter: ClaudeCodeAdapter, claude_tree: Path
+) -> None:
+    found = sorted(p.name for src in adapter.sources() for p in src.discover())
+    assert found == ["agent-a1b2.jsonl", "sess-sub.jsonl"]
+
+
+def test_subagent_turns_count_toward_the_session(claude_tree: Path, burn_home: Path) -> None:
+    from burnometer.scan import scan
+    from burnometer.store import Store
+
+    with Store.open(burn_home / "burn.db") as store:
+        scan(store, adapters=[ClaudeCodeAdapter()])
+        rows = store.query(
+            "SELECT session_id, COUNT(*) AS n, SUM(output_tokens) AS out FROM usage_events"
+            " GROUP BY session_id"
+        )
+    # One parent turn and two distinct subagent turns, repeats collapsed to the
+    # finished copy (200, not the streaming 5), all under the parent session.
+    assert [tuple(r) for r in rows] == [("sess-sub", 3, 510)]
+    blob = (burn_home / "burn.db").read_bytes()
+    assert b"CANARY" not in blob

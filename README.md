@@ -192,7 +192,7 @@ that, project-path privacy, custom rates and retention.
 
 | Agent | Tokens | Cost | Rate limits | Read from |
 |---|:-:|:-:|:-:|---|
-| **Claude Code** | ✅ | ✅ | via the row below | `~/.claude/projects/*/*.jsonl` |
+| **Claude Code** | ✅ | ✅ | via the rows below | `~/.claude/projects/*/*.jsonl`, and subagents' `*/*/subagents/agent-*.jsonl` |
 | **Codex CLI** | ✅ | ✅ | **exact** — with reset time | `~/.codex/sessions/**/rollout-*.jsonl` |
 | Claude (plan usage) | — | — | **exact** — 5-hour and weekly | `~/Library/Application Support/Claude/plan-usage-history.json` |
 | Claude (live, via Claude Code) | — | — | **exact, live** — 5-hour and weekly, with reset time | Claude Code's status line, once `burn-o-meter statusline install` is run |

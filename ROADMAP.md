@@ -43,14 +43,20 @@ read what it wrote, *then* write the adapter.
 ### 1. Other providers through the agents we already support
 
 Claude Code and Codex can both be pointed at another provider, and rates for 329
-models already ship — so **this may need no new code at all**. Point Codex at
-DeepSeek via `model_provider`, run a task, and check the model is named, priced,
-and that the integrity check still reconciles.
+models already ship.
 
-A provider emitting a different `token_count` shape would surface as a *failed
-reconciliation* rather than a wrong number. That is what the check is for.
+**Local half done.** Both agents were run against Ollama. The model is named and
+the tokens reconcile — Codex against its own running total, Claude Code against its
+own per-model totals — but it needed code after all: Codex records who served a
+session and the adapter was not reading it, so a local model said "rate unknown"
+instead of "no rate exists". Claude Code does not record the server at all, so a
+local model through it stays *unpriced* until the user sets a zero rate — see
+[docs/faq.md](docs/faq.md#can-it-measure-local-models). The same pass found
+subagent usage missing from every Claude Code total.
 
-*Small. Validates a claim the pricing table already makes.*
+**Hosted half open:** point Codex at DeepSeek via `model_provider`, and check the
+rate applies — and that the cost is labelled as billed spend, since a DeepSeek key
+is paid per token even when Codex's own plan is a subscription.
 
 ### 2. GitHub Copilot CLI
 
