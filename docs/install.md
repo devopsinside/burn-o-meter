@@ -70,9 +70,9 @@ pipx install git+https://github.com/devopsinside/burn-o-meter
 **A specific release without PyPI**, from the archive attached to it:
 
 ```bash
-pipx install https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.5/burn_o_meter-0.6.5.tar.gz
+pipx install https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.6/burn_o_meter-0.6.6.tar.gz
 # or
-uv tool install https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.5/burn_o_meter-0.6.5.tar.gz
+uv tool install https://github.com/devopsinside/burn-o-meter/releases/download/v0.6.6/burn_o_meter-0.6.6.tar.gz
 ```
 
 That URL pins a version; check [releases](https://github.com/devopsinside/burn-o-meter/releases)
