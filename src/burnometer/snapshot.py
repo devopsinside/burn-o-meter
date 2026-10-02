@@ -22,11 +22,12 @@ from __future__ import annotations
 
 import json
 import shutil
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .analytics import aggregate, blocks, cache_efficiency, time_series
+from .clock import start_of_day, start_of_month
 from .config import burn_home
 from .models import CostBasis
 from .safety import harden_path, secure_dir, secure_open_write
@@ -114,8 +115,14 @@ def engine_argv() -> list[str]:
     executable = shutil.which("burnometer")
     if executable:
         return [_stable_path(executable)]
+    # The menu bar app launches the engine with a GUI app's minimal PATH, so this
+    # fallback is the usual case there - and under Homebrew it finds the Cellar
+    # copy, whose path names a version that `brew upgrade` deletes. It goes
+    # through the same mapping, or the app loses its engine on the next upgrade.
     candidate = Path(sys.executable).parent / "burnometer"
-    return [str(candidate)] if candidate.exists() else [sys.executable, "-m", "burnometer"]
+    if candidate.exists():
+        return [_stable_path(str(candidate))]
+    return [sys.executable, "-m", "burnometer"]
 
 
 def write_engine_pointer(path: Path | None = None) -> Path:
@@ -137,13 +144,13 @@ def _money(value: float | None) -> float | None:
 def build_snapshot(store: Store, *, now: datetime | None = None) -> dict[str, Any]:
     """Assemble the payload. Contains only aggregates — never prompt content."""
     now = now or datetime.now(UTC)
-    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    midnight = start_of_day(now)  # the user's, not UTC's - see clock.py
 
-    today = aggregate(store, "model", since=start_of_day)
+    today = aggregate(store, "model", since=midnight)
     window_report = blocks(store)
     current = window_report.current
 
-    daily = aggregate(store, "day", since=now - timedelta(days=SPARKLINE_DAYS))
+    daily = aggregate(store, "day", since=start_of_day(now, days_back=SPARKLINE_DAYS - 1))
     # Oldest first, so a UI can draw it left to right without re-sorting.
     sparkline = sorted(
         ({"day": row.key, "cost_usd": _money(row.totals.cost_usd or 0.0)} for row in daily.rows),
@@ -164,7 +171,7 @@ def build_snapshot(store: Store, *, now: datetime | None = None) -> dict[str, An
             "price_source": row.price_source,
             # Where this model's spend went. Precomputed so a UI can reveal it
             # without querying — the app renders numbers, it never derives them.
-            "projects": _projects_for(store, row.key, start_of_day),
+            "projects": _projects_for(store, row.key, midnight),
         }
         for row in today.rows[:TOP_MODELS]
     ]
@@ -296,10 +303,10 @@ def _projects_for(store: Store, model: str, since: datetime) -> list[dict[str, A
 
 def _range_start(key: str, now: datetime) -> datetime:
     if key == "today":
-        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start_of_day(now)
     if key == "month":
-        return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    return (now - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return start_of_month(now)
+    return start_of_day(now, days_back=29)
 
 
 def _build_ranges(store: Store, now: datetime) -> list[dict[str, Any]]:

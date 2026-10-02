@@ -350,12 +350,20 @@ struct Snapshot {
 
 enum Format {
     /// Money for the menu bar, where width is the scarce resource.
+    /// Fewer digits for the compact menu bar title. A day of light use cost a few
+    /// cents and rendered as "$0.0", which says nothing was spent; anything above
+    /// zero that would round to zero says so instead.
     static func moneyTight(_ usd: Double) -> String {
-        usd >= 10 ? String(format: "$%.0f", usd) : String(format: "$%.1f", usd)
+        if usd >= 10 { return String(format: "$%.0f", usd) }
+        if usd >= 1 { return String(format: "$%.1f", usd) }
+        return money(usd)
     }
 
     static func money(_ usd: Double) -> String {
-        usd >= 100 ? String(format: "$%.0f", usd) : String(format: "$%.2f", usd)
+        if usd >= 100 { return String(format: "$%.0f", usd) }
+        // "$0.00" for a non-zero amount is the same claim as above, at half a cent.
+        if usd > 0 && usd < 0.005 { return "<$0.01" }
+        return String(format: "$%.2f", usd)
     }
 
     /// An unpriced row shows a dash, never `$0.00` — "free" and "unknown" are

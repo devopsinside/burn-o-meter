@@ -149,6 +149,17 @@ enum FreshnessCheck {
                   && Theme.quotaState(89.4).label == "getting full"
                   && Theme.isNearlyExhausted(90) && !Theme.isNearlyExhausted(89.4))
 
+        // Money never reads as zero when something was spent. A few cents
+        // rendered as "$0.0" in the compact title, beside a real day of usage.
+        check("a few cents is not shown as nothing, in either title style",
+              Format.moneyTight(0.046) == "$0.05" && Format.money(0.004) == "<$0.01"
+                  && Format.moneyTight(0.004) == "<$0.01",
+              "\(Format.moneyTight(0.046)), \(Format.money(0.004)), \(Format.moneyTight(0.004))")
+        check("zero is still zero, and larger amounts keep their short forms",
+              Format.money(0) == "$0.00" && Format.moneyTight(4.18) == "$4.2"
+                  && Format.moneyTight(47.97) == "$48" && Format.money(147.4) == "$147",
+              "\(Format.money(0)), \(Format.moneyTight(4.18)), \(Format.moneyTight(47.97))")
+
         if failures.isEmpty {
             print("freshness ok")
             exit(0)

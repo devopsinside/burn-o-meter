@@ -245,7 +245,8 @@ def test_parse_since_relative(text: str, delta: timedelta) -> None:
 
 def test_parse_since_iso_and_keywords() -> None:
     assert parse_since("2026-08-01").year == 2026
-    assert parse_since("today").hour == 0
+    # Midnight where the user is - not UTC midnight, which this once asserted.
+    assert parse_since("today").astimezone().hour == 0
     assert parse_since(None) is None
 
 

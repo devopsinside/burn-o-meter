@@ -50,6 +50,15 @@ jobs:
           COLUMNS=60 pytest -q
           COLUMNS=200 pytest -q
 
+      # Again in other time zones. This runner is UTC, the one zone where a day
+      # boundary computed in UTC is also correct - which is how "today" went on
+      # starting at 05:30 for users in India, with every test green. Kolkata is
+      # a half-hour offset; Kiritimati is UTC+14, a different date most of the day.
+      - name: Test (time zones east and far east of UTC)
+        run: |
+          TZ=Asia/Kolkata pytest -q
+          TZ=Pacific/Kiritimati pytest -q
+
   scripts:
     name: shell scripts lint
     runs-on: ubuntu-latest
@@ -164,6 +173,12 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      # For the end-to-end step, which runs the real engine: the image's own
+      # python3 can be older than the 3.11 the engine requires.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.13"
       - name: Build
         run: swift build --package-path macos/burn-o-meter -c release
       - name: Bundle
@@ -191,6 +206,16 @@ jobs:
                 macos/build/burn-o-meter.app/Contents/Info.plist)
           [ "$want" = "$got" ] || { echo "bundle says $got, package is $want" >&2; exit 1; }
           echo "bundle version matches package: $got"
+
+      - name: The menu bar shows today's usage, end to end, in several zones
+        # Transcript on disk -> engine scan -> snapshot -> the title this build
+        # computes. Unit tests on each half passed while the chain was broken:
+        # usage just after local midnight was filed under yesterday's UTC date,
+        # and the menu bar showed "—".
+        run: |
+          python3 -m venv /tmp/e2e
+          /tmp/e2e/bin/pip install --quiet .
+          ENGINE=/tmp/e2e/bin/burnometer scripts/menubar-e2e.sh
 
       - name: Bundle is a status-bar app
         run: |

@@ -23,6 +23,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from .clock import LOCAL_DAY_SQL, LOCAL_HOUR_SQL, local_label
 from .models import CostBasis, TokenCounts
 from .store import Store
 
@@ -50,7 +51,8 @@ DIMENSIONS: dict[str, str] = {
     "family": "model_family",
     "project": "COALESCE(project, '(unattributed)')",
     "provider": "provider",
-    "day": "substr(ts, 1, 10)",
+    # The user's calendar day, not UTC's - see clock.py.
+    "day": LOCAL_DAY_SQL,
     "session": "COALESCE(session_id, '(none)')",
     "effort": "COALESCE(effort, '(default)')",
 }
@@ -411,8 +413,8 @@ def latest_quotas(store: Store, provider: str) -> Sequence[object]:
 #: Whitelisted bucket expressions. As with DIMENSIONS, a caller passes a key and
 #: never SQL, so nothing caller-supplied reaches a GROUP BY.
 BUCKETS: dict[str, str] = {
-    "hour": "substr(ts, 1, 13)",
-    "day": "substr(ts, 1, 10)",
+    "hour": LOCAL_HOUR_SQL,
+    "day": LOCAL_DAY_SQL,
 }
 
 
@@ -504,16 +506,23 @@ def time_series(
 
 
 def _bucket_labels(bucket: str, since: datetime, until: datetime) -> list[str]:
-    """Every bucket label in a range, including empty ones."""
-    step = timedelta(hours=1) if bucket == "hour" else timedelta(days=1)
-    width = 13 if bucket == "hour" else 10
-    cursor = since.astimezone(UTC).replace(minute=0, second=0, microsecond=0)
-    if bucket == "day":
-        cursor = cursor.replace(hour=0)
+    """Every bucket label in a range, including empty ones, in local time.
+
+    Walks UTC hours and labels each in local time, so a clock change is handled
+    by the zone rules rather than by arithmetic: the hour skipped in spring never
+    appears, and the hour repeated in autumn is one bucket, as SQLite groups it.
+    A day bucket is the same walk, deduplicated to dates.
+    """
+    # Stepped from `since` itself, not from the UTC hour it falls in: in a zone
+    # offset by half an hour, local midnight is 18:30 UTC, and flooring that to
+    # 18:00 starts the chart at 23:00 on the previous local day.
+    cursor = since.astimezone(UTC)
     out: list[str] = []
     while cursor <= until:
-        out.append(_iso(cursor)[:width])
-        cursor += step
+        label = local_label(cursor, bucket)
+        if not out or out[-1] != label:
+            out.append(label)
+        cursor += timedelta(hours=1)
     return out
 
 

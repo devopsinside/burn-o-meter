@@ -101,6 +101,18 @@ done
 "$BIN/burn-o-meter" models --json 2>/dev/null | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
   && ok "--json is valid JSON" || bad "--json did not parse"
 
+# "Today" must start at this machine's midnight, not UTC's. It once began at
+# 05:30 in India, and the menu bar showed nothing for usage after midnight.
+since="$("$BIN/burn-o-meter" today --json 2>/dev/null \
+         | python3 -c 'import json,sys; print(json.load(sys.stdin)["today"]["since"])' 2>/dev/null)"
+want="$(python3 -c '
+from datetime import UTC, datetime
+d = datetime.now().astimezone().date()
+print(datetime(d.year, d.month, d.day).astimezone().astimezone(UTC).isoformat())')"
+[ -n "$since" ] && [ "$since" = "$want" ] \
+  && ok "today starts at local midnight ($(date +%Z))" \
+  || bad "today starts at ${since:-?}, expected local midnight $want"
+
 step "Privacy"
 # The whole promise: none of your prompts end up in what it writes.
 leak=0

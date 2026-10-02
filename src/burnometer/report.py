@@ -14,6 +14,7 @@ from typing import Any
 from rich.table import Table
 
 from .analytics import Block, BlockReport, Report, Row, Totals
+from .clock import start_of_day
 from .models import CostBasis
 
 __all__ = [
@@ -44,10 +45,11 @@ def parse_since(value: str | None) -> datetime | None:
         return None
     text = value.strip().lower()
     now = datetime.now(UTC)
+    # Midnight where the user is, not in UTC - see clock.py.
     if text == "today":
-        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start_of_day(now)
     if text == "yesterday":
-        return (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return start_of_day(now, days_back=1)
     if m := _RELATIVE.match(text):
         amount, unit = int(m.group(1)), m.group(2)
         if unit == "m":
@@ -59,7 +61,8 @@ def parse_since(value: str | None) -> datetime | None:
         raise ValueError(
             f"cannot read {value!r} as a time; try 7d, 24h, 2w, today, or 2026-08-01"
         ) from exc
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    # A date or time with no zone was typed by the user, so it is their local time.
+    return parsed if parsed.tzinfo else parsed.astimezone().astimezone(UTC)
 
 
 def plural(count: int, noun: str, suffix: str = "s") -> str:

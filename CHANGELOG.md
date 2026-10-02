@@ -10,6 +10,33 @@ without provenance is the thing this project exists to avoid.
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Today" began at UTC midnight, so the menu bar could show nothing.** Every
+  day boundary — today, yesterday, this month, the daily report and the hourly
+  chart — was cut in UTC. In India that put midnight at 05:30: usage at 01:21 was
+  filed under yesterday, and at 13:30 the menu bar showed `—` for a day with real
+  usage. The hourly chart's bars were labelled in UTC too, five and a half hours
+  off. All of them now follow your own time zone, including on clock-change days.
+- **A few cents of spend showed as `$0.0`.** The compact menu bar title rounded to
+  one decimal, so a light day read as nothing spent. Amounts under a dollar keep
+  their cents, and anything above zero that would still round to zero shows as
+  `<$0.01`.
+- **The menu bar app could lose its engine on `brew upgrade`.** The app runs the
+  engine with a GUI app's minimal PATH, so the engine recorded its own Homebrew
+  Cellar path — one naming a version `brew upgrade` deletes. It now records the
+  stable `/opt/homebrew/bin` path, as it already did from a terminal.
+
+### Added
+
+- **Tests that run the engine in other time zones**, and CI runs the whole suite
+  under Asia/Kolkata and Pacific/Kiritimati as well as UTC — the one zone where
+  this bug could not show.
+- **`scripts/menubar-e2e.sh`**: a transcript on disk, a real scan and the title
+  the compiled app computes, in four zones and both title styles. It runs in CI
+  against every build, and fails on 0.6.5. The smoke test now also checks that
+  "today" starts at the machine's own midnight.
+
 ### Changed
 
 - **The README leads with the install that gives you the menu bar app.** It now

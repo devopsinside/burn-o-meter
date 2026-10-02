@@ -264,3 +264,30 @@ def test_quota_from_an_expired_window_is_dropped():
     # Unparseable or missing timestamps must not silently drop a real figure.
     assert _window_already_reset(None, observed) is False
     assert _window_already_reset("not-a-date", observed) is False
+
+
+def test_engine_pointer_survives_a_homebrew_upgrade(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The menu bar app runs the engine with a GUI app's minimal PATH, so
+    `which` finds nothing and the fallback - the interpreter's own directory -
+    is what gets recorded. Under Homebrew that is a Cellar path naming a version
+    `brew upgrade` deletes, after which the app could no longer scan at all.
+    Found in a real engine.json pointing at .../Cellar/burn-o-meter/0.6.5/...."""
+    import sys
+
+    from burnometer import snapshot
+
+    real_bin = tmp_path / "Cellar" / "burn-o-meter" / "0.6.5" / "libexec" / "bin"
+    real_bin.mkdir(parents=True)
+    (real_bin / "burnometer").write_text("#!/bin/sh\n")
+    (real_bin / "python").write_text("")
+    stable = tmp_path / "opt" / "homebrew" / "bin"
+    stable.mkdir(parents=True)
+    (stable / "burnometer").symlink_to(real_bin / "burnometer")
+
+    monkeypatch.setattr(snapshot, "_STABLE_BIN_DIRS", (str(stable),))
+    monkeypatch.setattr(snapshot.shutil, "which", lambda name: None)
+    monkeypatch.setattr(sys, "executable", str(real_bin / "python"))
+
+    assert snapshot.engine_argv() == [str(stable / "burnometer")]
