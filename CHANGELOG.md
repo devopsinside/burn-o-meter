@@ -8,6 +8,18 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Fixed
+
+- **`doctor` called a stopped source "ready".** The Claude desktop app changed in
+  October 2026: it now fetches your usage at launch and keeps polling only if its
+  menu bar icon was opened within a server-set number of hours. On the machine
+  this was found on, its record stopped at the app's launch and stayed silent for
+  six days, while `doctor` reported it ready and the Claude percentage froze.
+  `doctor` now shows **silent since …** for a plan-usage file with no sample in
+  two hours, and says how to resume it.
+
 ## [0.6.6] — 2026-10-02
 
 ### Fixed

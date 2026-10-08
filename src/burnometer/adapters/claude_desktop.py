@@ -81,6 +81,37 @@ class ClaudeDesktopAdapter:
     # yield a new answer without changing. It is one small JSON document.
     rescan_unchanged = True
 
+    #: How long the app normally goes between samples, with room to spare. It
+    #: polls every 15 minutes while it is polling at all.
+    SILENT_AFTER = timedelta(hours=2)
+
+    #: Why the file can go quiet while the app is running. Observed in Claude
+    #: desktop 2.19675 (October 2026): it fetches usage at launch and then polls
+    #: only if its menu bar icon was opened within a server-configured number of
+    #: hours (`pollRequiresTrayOpenWithinHours`, tracked as
+    #: `planUsageLastTrayOpenAt`). On the machine it was found on, the last sample
+    #: was written at the app's launch and none for six days after.
+    silent_hint = (
+        "the Claude app now records usage only while its menu bar icon has been "
+        "opened recently — click it to resume, or use `burn-o-meter statusline "
+        "install` for a live figure from Claude Code"
+    )
+
+    def last_activity(self, path: Path, root: Path) -> datetime | None:
+        """When the app last wrote a sample, for `doctor` to judge freshness."""
+        try:
+            with open_log_readonly(root, path) as fh:
+                samples = json.loads(fh.read()).get("samples")
+        except Exception:  # noqa: BLE001 - a diagnostic, never a failure
+            return None
+        times = (
+            [pluck_int(s, "t") for s in samples if isinstance(s, dict)]
+            if isinstance(samples, list)
+            else []
+        )
+        newest = max((t for t in times if t), default=0)
+        return datetime.fromtimestamp(newest / 1000, tz=UTC) if newest else None
+
     def sources(self) -> Sequence[LogSource]:
         root = Path.home() / "Library" / "Application Support" / "Claude"
         # One named file, not a glob over a directory that also holds config and

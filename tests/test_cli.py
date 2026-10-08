@@ -567,3 +567,34 @@ def test_the_pypi_page_has_no_link_that_breaks_on_pypi() -> None:
     relative = [t for t in targets if not t.startswith("https://")]
     assert not relative, f"relative links break on pypi.org: {relative}"
     assert "pipx install burn-o-meter" in page
+
+
+@pytest.mark.parametrize(("minutes_ago", "silent"), [(10, False), (6 * 24 * 60, True)])
+def test_doctor_flags_a_plan_usage_file_that_stopped(
+    burn_home: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    minutes_ago: int,
+    silent: bool,
+) -> None:
+    """The Claude app can keep running and stop writing: since an October 2026
+    update it polls only if its menu bar icon was opened recently. doctor said
+    "ready" for a file six days silent, and the percentage froze undiagnosed."""
+    import json
+    import time
+
+    home = tmp_path / "home"
+    claude = home / "Library" / "Application Support" / "Claude"
+    claude.mkdir(parents=True)
+    t = int((time.time() - minutes_ago * 60) * 1000)
+    (claude / "plan-usage-history.json").write_text(
+        json.dumps({"version": 2, "samples": [{"t": t, "org": None, "u": {"fh": 5, "sd": 9}}]})
+    )
+    monkeypatch.setenv("HOME", str(home))
+    burn_home.mkdir()
+
+    assert main(["doctor"]) == 0
+    out = disclosed(capsys.readouterr().out)
+    assert ("silentsince" in out) is silent
+    assert ("menubariconhasbeenopenedrecently" in out) is silent

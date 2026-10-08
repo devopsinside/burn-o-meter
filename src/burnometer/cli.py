@@ -83,6 +83,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     pt.add_column("log location")
     pt.add_column("files", justify="right")
     pt.add_column("status")
+    silent: list[str] = []
     for adapter in get_adapters():
         for src in adapter.sources():
             found = list(src.discover()) if src.root.exists() else []
@@ -99,6 +100,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 status = "[yellow]no logs found[/yellow]"
             else:
                 status = "[green]ready[/green]"
+                # A source that exists can still have stopped. "ready" for a file
+                # the app quit writing six days ago is how a frozen percentage
+                # went undiagnosed.
+                last = _last_activity(adapter, found, src.root)
+                if last is not None and datetime.now(UTC) - last > adapter.SILENT_AFTER:
+                    status = f"[yellow]silent since {last.astimezone():%b %d %H:%M}[/yellow]"
+                    silent.append(f"{adapter.display_name}: {adapter.silent_hint}")
             location = f"{redact_path(src.root)}/{src.glob}"
             if src.env_var and not src.root.exists():
                 # Say which knob to turn, rather than leaving "not installed" to
@@ -106,6 +114,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 location += f"   [dim](or set ${src.env_var})[/dim]"
             pt.add_row(adapter.display_name, location, str(len(found)), status)
     console.print(pt)
+    for note in silent:
+        console.print(f"  [yellow]![/yellow] {note}")
     console.print()
 
     # Store
@@ -168,6 +178,15 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         st.add_row("range", f"{s['earliest']} .. {s['latest']}")
     console.print(st)
     return 0
+
+
+def _last_activity(adapter, found: list[Path], root: Path) -> datetime | None:
+    """The newest write a source reports, if it can say."""
+    probe = getattr(adapter, "last_activity", None)
+    if probe is None or not found:
+        return None
+    times = [t for t in (probe(path, root) for path in found) if t is not None]
+    return max(times, default=None)
 
 
 def _doctor_security() -> int:
