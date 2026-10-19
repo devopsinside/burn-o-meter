@@ -631,3 +631,23 @@ def test_doctor_is_quiet_about_the_menu_bar_when_nothing_was_hidden(
     (burn_home / "menubar.log").write_text("2026-10-19T10:00:00Z visible x 900 w 80\n")
     assert main(["doctor"]) == 0
     assert "hidthemenubaricon" not in disclosed(capsys.readouterr().out)
+
+
+def test_no_script_pipes_into_grep_q() -> None:
+    """`cmd | grep -q` under `set -o pipefail` fails with SIGPIPE when grep exits at
+    its first match. In the smoke test that turned a found credential leak into a
+    pass - shown with a key at the start of a 4 MB file - and in an end-to-end
+    script it failed checks whose text was there. Capture, then match."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    scripts = [*root.glob("*.sh"), *root.glob("scripts/*.sh"), *root.glob("macos/*.sh")]
+    offenders = [
+        f"{path.relative_to(root)}:{n}"
+        for path in scripts
+        if "pipefail" in path.read_text()
+        for n, line in enumerate(path.read_text().splitlines(), 1)
+        if re.search(r"\|\s*grep\s+-[A-Za-z]*q", line) and not line.lstrip().startswith("#")
+    ]
+    assert not offenders, f"pipes into grep -q under pipefail: {offenders}"

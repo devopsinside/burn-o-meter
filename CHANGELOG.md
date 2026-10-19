@@ -8,7 +8,7 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
-## [Unreleased]
+## [0.6.7] — 2026-10-19
 
 ### Fixed
 
@@ -28,8 +28,18 @@ without provenance is the thing this project exists to avoid.
 - **`--probe-menubar` changed your menu bar style and left it changed.** It wrote
   each style to the preference to measure it; it now restores yours.
 
+- **The smoke test could pass a real credential leak.** Its privacy checks piped
+  `strings` into `grep -q` under `pipefail`; grep exiting at its first match made
+  the pipeline fail with SIGPIPE, which the `if` read as "nothing found". Shown
+  with a key-shaped string at the start of a 4 MB file: reported clean. Every
+  script now captures, then matches, and a test rejects the pattern anywhere.
+
 ### Added
 
+- **`scripts/hook-e2e.sh`**, now in the repository and in CI: the status line hook
+  installed into a real settings file, run through the exact command Claude Code
+  runs, then uninstalled; subagent and local-model accounting; and the snapshot
+  the menu bar reads. It refuses to report a pass unless every check ran.
 - **`doctor` says when macOS has been hiding the icon**, from a short log the app
   keeps of the transitions (positions and display widths only), and how to stop it.
 - **`--probe-fit`** forces an over-wide title on the real menu bar and reports
@@ -582,6 +592,7 @@ without provenance is the thing this project exists to avoid.
 First alpha. Claude Code and Codex adapters, TTL-aware pricing, SQLite storage,
 the macOS menu bar app, and the security guarantees with their enforcing tests.
 
+[0.6.7]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.7
 [0.6.6]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.6
 [0.6.5]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.5
 [0.6.4]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.4

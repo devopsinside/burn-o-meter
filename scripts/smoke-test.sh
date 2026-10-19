@@ -118,7 +118,11 @@ step "Privacy"
 leak=0
 for f in "$BURNOMETER_HOME"/*; do
   [ -f "$f" ] || continue
-  if strings "$f" 2>/dev/null | grep -qiE 'BEGIN [A-Z ]*PRIVATE KEY|sk-ant-[A-Za-z0-9]{8}'; then
+  # Matched against captured output, never `strings | grep -q`: under pipefail,
+  # grep exiting at its first match makes the pipeline fail with SIGPIPE, and
+  # this `if` then read a found leak as no leak. Shown with a key at the start
+  # of a 4 MB file: the piped form reported it clean.
+  if grep -qiE 'BEGIN [A-Z ]*PRIVATE KEY|sk-ant-[A-Za-z0-9]{8}' <<<"$(strings "$f" 2>/dev/null)"; then
     bad "something credential-shaped in $(basename "$f")"; leak=1
   fi
 done
@@ -133,8 +137,7 @@ fi
 # the menu bar app can find it, and that is an absolute path by definition. The
 # guarantee is about the stores that hold *your* data - the database and the UI
 # snapshot - which must never contain a path from your home directory.
-if strings "$BURNOMETER_HOME"/burn.db "$BURNOMETER_HOME"/snapshot.json 2>/dev/null \
-   | grep -q "$HOME/"; then
+if grep -qF "$HOME/" <<<"$(strings "$BURNOMETER_HOME"/burn.db "$BURNOMETER_HOME"/snapshot.json 2>/dev/null)"; then
   bad "an absolute path from your home directory was stored in the database or snapshot"
 else
   ok "no absolute paths in the database or snapshot"

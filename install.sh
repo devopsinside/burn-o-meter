@@ -107,7 +107,8 @@ fi
 # ---------------------------------------------------------------- background scan
 if [ "$WANT_AGENT" = 1 ]; then
   step "Background scanning"
-  if burn-o-meter agent status 2>/dev/null | grep -q 'loaded'; then
+  # Captured, then matched: `cmd | grep -q` under pipefail can fail with SIGPIPE.
+  if grep -q 'loaded' <<<"$(burn-o-meter agent status 2>/dev/null)"; then
     ok "already scheduled"
   else
     burn-o-meter agent install >/dev/null
@@ -123,7 +124,7 @@ printf '\n'
 note "burn-o-meter today | models | daily | doctor"
 # Not done for you: it edits Claude Code's own settings, which is yours to decide.
 if [ -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" ] \
-   && burn-o-meter statusline status 2>/dev/null | grep -q '^not installed'; then
+   && grep -q '^not installed' <<<"$(burn-o-meter statusline status 2>/dev/null)"; then
   note "live Claude rate limits from Claude Code: burn-o-meter statusline install"
 fi
 note "remove everything with: ./uninstall.sh"

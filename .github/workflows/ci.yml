@@ -217,6 +217,12 @@ jobs:
           /tmp/e2e/bin/pip install --quiet .
           ENGINE=/tmp/e2e/bin/burnometer scripts/menubar-e2e.sh
 
+      - name: The status line hook, subagents and local models, end to end
+        # Install, wrap and restore a real settings.json; capture through the exact
+        # command string Claude Code runs; and check what lands in the store. It
+        # lived outside the repo once, and "passed" by not running at all.
+        run: ENGINE=/tmp/e2e/bin/burnometer scripts/hook-e2e.sh
+
       - name: Bundle is a status-bar app
         run: |
           plist=macos/build/burn-o-meter.app/Contents/Info.plist
