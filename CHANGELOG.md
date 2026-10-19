@@ -12,6 +12,29 @@ without provenance is the thing this project exists to avoid.
 
 ### Fixed
 
+- **The menu bar icon kept disappearing.** On a MacBook, macOS places menu bar
+  icons that do not fit *under the notch*, where nothing is drawn — the app keeps
+  running and its window still reports itself visible, so it looks like a crash.
+  The room changes with the frontmost app's menus and with which display's menu
+  bar is active, so the icon came and went. The app now checks where it actually
+  is on every poll (under or left of the notch, or past a display's edge), drops to
+  the glyph alone when the full title does not fit, and tries the full title again
+  when you switch apps or displays. Verified on a real menu bar: an over-wide title
+  placed 415pt past the display edge was detected, and the 34pt glyph that
+  replaced it was back on screen.
+- **A position you dragged the icon to was forgotten on every launch.** The status
+  item had no autosave name, so macOS returned it to the leftmost spot — the first
+  one hidden. ⌘-dragging it toward Control Center now sticks.
+- **`--probe-menubar` changed your menu bar style and left it changed.** It wrote
+  each style to the preference to measure it; it now restores yours.
+
+### Added
+
+- **`doctor` says when macOS has been hiding the icon**, from a short log the app
+  keeps of the transitions (positions and display widths only), and how to stop it.
+- **`--probe-fit`** forces an over-wide title on the real menu bar and reports
+  whether the app detected it and whether the glyph then fit.
+
 - **`doctor` called a stopped source "ready".** The Claude desktop app changed in
   October 2026: it now fetches your usage at launch and keeps polling only if its
   menu bar icon was opened within a server-set number of hours. On the machine

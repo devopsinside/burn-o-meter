@@ -348,7 +348,7 @@ def test_docs_do_not_contradict_each_other_on_the_login_item():
     assert "--enable-login-item" in faq, "troubleshooting must mention the login item fix"
 
     reboot = faq.index("missing after a reboot")
-    full_bar = faq.index("the menu bar being full")
+    full_bar = faq.index("ran out of room in the menu bar")
     assert reboot < full_bar, "the login-item cause must be listed before the full-menu-bar one"
 
 
@@ -598,3 +598,36 @@ def test_doctor_flags_a_plan_usage_file_that_stopped(
     out = disclosed(capsys.readouterr().out)
     assert ("silentsince" in out) is silent
     assert ("menubariconhasbeenopenedrecently" in out) is silent
+
+
+def test_doctor_says_when_macos_has_been_hiding_the_icon(
+    burn_home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The app keeps running while macOS parks its icon under the notch, so it
+    looks like an app that keeps disappearing. The app logs each time it finds
+    itself out of sight; doctor turns that into an explanation."""
+    from datetime import UTC, datetime, timedelta
+
+    burn_home.mkdir()
+    now = datetime.now(UTC)
+    old = (now - timedelta(days=30)).isoformat().replace("+00:00", "Z")
+    recent = (now - timedelta(hours=3)).isoformat().replace("+00:00", "Z")
+    (burn_home / "menubar.log").write_text(
+        f"{old} hidden x 679 w 80 on 1280pt display notch-edge 718\n"
+        f"{recent} hidden x 679 w 80 on 1280pt display notch-edge 718\n"
+        f"{recent} visible-as-glyph x 730 w 34 on 1280pt display notch-edge 718\n"
+        "not a log line at all\n"
+    )
+    assert main(["doctor"]) == 0
+    out = disclosed(capsys.readouterr().out)
+    assert "hidthemenubaricon1timeinthelast7days" in out, "only the recent hide counts"
+    assert "⌘-dragburn-o-meter" in out
+
+
+def test_doctor_is_quiet_about_the_menu_bar_when_nothing_was_hidden(
+    burn_home: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    burn_home.mkdir()
+    (burn_home / "menubar.log").write_text("2026-10-19T10:00:00Z visible x 900 w 80\n")
+    assert main(["doctor"]) == 0
+    assert "hidthemenubaricon" not in disclosed(capsys.readouterr().out)

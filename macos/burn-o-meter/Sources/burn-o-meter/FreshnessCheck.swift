@@ -160,6 +160,22 @@ enum FreshnessCheck {
                   && Format.moneyTight(47.97) == "$48" && Format.money(147.4) == "$147",
               "\(Format.money(0)), \(Format.moneyTight(4.18)), \(Format.moneyTight(47.97))")
 
+        // The menu bar icon hid behind the notch: macOS kept placing it, under
+        // the notch, where nothing is drawn, and its window still said visible.
+        // Measured: x 679 inside a notch spanning 562…718.
+        check("an item under or left of the notch counts as hidden",
+              MenuBarFit.isHidden(itemMinX: 679, notchRightEdge: 718)
+                  && MenuBarFit.isHidden(itemMinX: 300, notchRightEdge: 718))
+        check("an item right of the notch, or on a display without one, is visible",
+              !MenuBarFit.isHidden(itemMinX: 900, notchRightEdge: 718)
+                  && !MenuBarFit.isHidden(itemMinX: 718, notchRightEdge: 718)
+                  && !MenuBarFit.isHidden(itemMinX: 10, notchRightEdge: nil))
+        check("an item running past its display's edge counts as hidden",
+              MenuBarFit.isOffScreen(item: NSRect(x: 2587, y: 0, width: 1028, height: 24),
+                                     screen: NSRect(x: 1280, y: 0, width: 1920, height: 1080))
+                  && !MenuBarFit.isOffScreen(item: NSRect(x: 2597, y: 0, width: 73, height: 24),
+                                             screen: NSRect(x: 1280, y: 0, width: 1920, height: 1080)))
+
         if failures.isEmpty {
             print("freshness ok")
             exit(0)

@@ -10,7 +10,7 @@ import argparse
 import json
 import stat
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from rich.console import Console
@@ -116,6 +116,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     console.print(pt)
     for note in silent:
         console.print(f"  [yellow]![/yellow] {note}")
+    if note := _menubar_note():
+        console.print(f"  [yellow]![/yellow] {note}")
     console.print()
 
     # Store
@@ -178,6 +180,51 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         st.add_row("range", f"{s['earliest']} .. {s['latest']}")
     console.print(st)
     return 0
+
+
+#: How far back `doctor` looks in the app's menu bar log.
+MENUBAR_LOOKBACK_DAYS = 7
+
+
+def _menubar_note(now: datetime | None = None) -> str | None:
+    """Whether macOS has been hiding the menu bar icon, from the app's own log.
+
+    The app is running and its window says visible while the icon sits under the
+    notch or past a display's edge, so from the outside it looks like an app that
+    keeps quitting. The app records each time it finds itself out of sight.
+    """
+    path = burn_home() / "menubar.log"
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()[-400:]
+    except OSError:
+        return None
+    cutoff = (now or datetime.now(UTC)) - timedelta(days=MENUBAR_LOOKBACK_DAYS)
+    hides: list[tuple[datetime, str]] = []
+    for line in lines:
+        stamp, _, rest = line.partition(" ")
+        event = rest.partition(" ")[0]
+        try:
+            when = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if when >= cutoff and event.startswith("hidden"):
+            hides.append((when, event))
+    if not hides:
+        return None
+    last = max(when for when, _ in hides)
+    full = any(event == "hidden-even-as-glyph" for _, event in hides)
+    return (
+        f"macOS hid the menu bar icon {plural(len(hides), 'time')} in the last "
+        f"{MENUBAR_LOOKBACK_DAYS} days (last {last.astimezone():%b %d %H:%M}) - the "
+        "menu bar ran out of room, usually beside a notch. "
+        + (
+            "Even the glyph alone did not fit. "
+            if full
+            else "The app falls back to the glyph alone to stay visible. "
+        )
+        + "⌘-drag burn-o-meter toward the right of the menu bar, where macOS hides "
+        "items last; it now stays where you put it."
+    )
 
 
 def _last_activity(adapter, found: list[Path], root: Path) -> datetime | None:
