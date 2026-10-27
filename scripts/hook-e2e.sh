@@ -12,6 +12,19 @@
 # once "passed" after the copy it ran from had been deleted.
 set -uo pipefail
 
+# A Python new enough for the engine and for these helpers (datetime.UTC is
+# 3.11+). Bare `python3` is not that everywhere: with full Xcode selected,
+# /usr/bin/python3 is Xcode's 3.9, and every helper below failed on it - which
+# the menu bar check then reported as "no spend" instead of as a broken setup.
+PY=""
+for candidate in python3.14 python3.13 python3.12 python3.11 python3; do
+  if command -v "$candidate" >/dev/null 2>&1 \
+     && "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
+    PY="$(command -v "$candidate")"; break
+  fi
+done
+[ -n "$PY" ] || { echo "needs Python 3.11 or newer on PATH" >&2; exit 2; }
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENGINE="${ENGINE:-$(command -v burnometer || true)}"
 [ -n "$ENGINE" ] && [ -x "$ENGINE" ] || { echo "no engine (set ENGINE=)" >&2; exit 2; }
@@ -28,11 +41,11 @@ B="$(basename "$ENGINE")"
 checks=0; failed=0
 ok()  { checks=$((checks+1)); printf '  \033[32m✓\033[0m %s\n' "$1"; }
 bad() { checks=$((checks+1)); failed=$((failed+1)); printf '  \033[31m✗\033[0m %s\n' "$1"; }
-mode() { python3 -c 'import os,stat,sys; print(oct(stat.S_IMODE(os.stat(sys.argv[1]).st_mode))[2:])' "$1"; }
+mode() { "$PY" -c 'import os,stat,sys; print(oct(stat.S_IMODE(os.stat(sys.argv[1]).st_mode))[2:])' "$1"; }
 
 echo "1. fake agent data"
 P="$H/.claude/projects/-Users-e2e-proj"; mkdir -p "$P/sess-1/subagents" "$P/sess-1/tool-results" "$P/memory"
-line() { python3 -c "import json,sys; print(json.dumps({'type':'assistant','isSidechain':$3,'requestId':'r_'+sys.argv[1],'sessionId':'sess-1','timestamp':'2026-09-28T10:00:00.000Z','cwd':'/Users/e2e/proj','message':{'model':'claude-opus-5','id':sys.argv[1],'content':[{'type':'text','text':'CANARY-E2E-TEXT'}],'usage':{'input_tokens':3,'output_tokens':int(sys.argv[2]),'cache_read_input_tokens':1000}}}))" "$1" "$2"; }
+line() { "$PY" -c "import json,sys; print(json.dumps({'type':'assistant','isSidechain':$3,'requestId':'r_'+sys.argv[1],'sessionId':'sess-1','timestamp':'2026-09-28T10:00:00.000Z','cwd':'/Users/e2e/proj','message':{'model':'claude-opus-5','id':sys.argv[1],'content':[{'type':'text','text':'CANARY-E2E-TEXT'}],'usage':{'input_tokens':3,'output_tokens':int(sys.argv[2]),'cache_read_input_tokens':1000}}}))" "$1" "$2"; }
 { line m_main 40 False; line m_main 40 False; } > "$P/sess-1.jsonl"
 # A subagent writes while it streams: the first copy holds part of the output.
 { line m_sub 7 True; line m_sub 900 True; } > "$P/sess-1/subagents/agent-x1.jsonl"
@@ -45,7 +58,7 @@ chmod 600 "$H/.claude/settings.json"
 
 echo "2. statusline install wraps the existing status line"
 "$B" statusline install >/dev/null
-if python3 - "$H" <<'PY'
+if "$PY" - "$H" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1] + "/.claude/settings.json"))
 c = d["statusLine"]["command"]
@@ -57,7 +70,7 @@ then ok "other settings kept, existing command wrapped"; else bad "settings afte
 [ "$(mode "$H/.claude/settings.json")" = 600 ] && ok "settings mode kept 600" || bad "settings mode changed"
 
 echo "3. Claude Code runs the hook - the exact command string, through sh"
-CMD=$(python3 -c "import json;print(json.load(open('$H/.claude/settings.json'))['statusLine']['command'])")
+CMD=$("$PY" -c "import json;print(json.load(open('$H/.claude/settings.json'))['statusLine']['command'])")
 RESET=$(( $(date +%s) + 3 * 3600 ))
 OUT=$(printf '{"cwd":"/Users/e2e/CANARY-E2E-CWD","transcript_path":"/x/CANARY-E2E-T","session_id":"CANARY-E2E-S","rate_limits":{"five_hour":{"used_percentage":91.6,"resets_at":%s},"seven_day":{"used_percentage":22,"resets_at":%s}}}' "$RESET" "$((RESET + 86400))" | sh -c "$CMD")
 [ "$OUT" = "mybar" ] && ok "the wrapped status line still prints its own output" || bad "wrapped output was '$OUT'"
@@ -73,7 +86,7 @@ echo "4. scan, today, doctor"
 # grep exits at the first match, reporting a failure for text that was there.
 today_out="$("$B" today 2>&1)"
 grep -q "claude five_hour  92% used" <<<"$today_out" && ok "today shows the live 5h figure (91.6 -> 92%)" || bad "today lacks the live figure"
-if python3 - "$BURNOMETER_HOME" <<'PY'
+if "$PY" - "$BURNOMETER_HOME" <<'PY'
 import sqlite3, sys
 home = sys.argv[1]
 db = sqlite3.connect(home + "/burn.db")
@@ -88,7 +101,7 @@ doctor_out="$("$B" doctor 2>/dev/null)"
 grep -q "live, via" <<<"$doctor_out" && ok "doctor lists the live source" || bad "doctor output"
 
 echo "5. the snapshot the menu bar reads"
-if python3 - "$BURNOMETER_HOME/snapshot.json" <<'PY'
+if "$PY" - "$BURNOMETER_HOME/snapshot.json" <<'PY'
 import json, sys
 q = [x for x in json.load(open(sys.argv[1]))["quotas"] if x["provider"] == "claude"]
 assert any(x["window"] == "five_hour" and x["used_percent"] == 91.6 and x["exact"] for x in q), q
@@ -97,7 +110,7 @@ then ok "snapshot carries the live 91.6%"; else bad "snapshot lacks the live fig
 
 echo "6. uninstall restores"
 "$B" statusline uninstall >/dev/null
-python3 -c "import json; d=json.load(open('$H/.claude/settings.json')); assert d['statusLine']=={'type':'command','command':'echo mybar','padding':1}, d['statusLine']; assert d['env']['ANTHROPIC_API_KEY']=='sk-CANARY-E2E-KEY'" \
+"$PY" -c "import json; d=json.load(open('$H/.claude/settings.json')); assert d['statusLine']=={'type':'command','command':'echo mybar','padding':1}, d['statusLine']; assert d['env']['ANTHROPIC_API_KEY']=='sk-CANARY-E2E-KEY'" \
   && ok "original status line restored exactly" || bad "restore"
 grep -rl "CANARY-E2E-KEY" "$BURNOMETER_HOME" >/dev/null 2>&1 && bad "API key copied into the data directory" || ok "API key never copied"
 

@@ -189,6 +189,14 @@ jobs:
         # renders the real view against an oversized snapshot and measures it.
         run: macos/build/burn-o-meter.app/Contents/MacOS/burn-o-meter --check-layout
 
+      - name: The menu bar slot grows at once and holds its width
+        # On the runner's real menu bar. Flipping the width on every app switch made
+        # macOS draw the title over neighbouring icons; the slot now changes width
+        # as rarely as the text allows.
+        run: |
+          BURNOMETER_HOME="$(mktemp -d)" \
+            macos/build/burn-o-meter.app/Contents/MacOS/burn-o-meter --probe-width
+
       - name: A stale quota reading is never presented as current
         # The menu bar sat at an old percentage indefinitely: a quota's age was
         # read from the payload's own age_seconds, which the writer computes once,

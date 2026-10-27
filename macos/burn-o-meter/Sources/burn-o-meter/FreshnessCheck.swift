@@ -176,6 +176,24 @@ enum FreshnessCheck {
                   && !MenuBarFit.isOffScreen(item: NSRect(x: 2597, y: 0, width: 73, height: 24),
                                              screen: NSRect(x: 1280, y: 0, width: 1920, height: 1080)))
 
+        // The slot's width changes as rarely as possible: v0.6.7 flipped it on
+        // every app switch and macOS drew the title over the neighbouring icons.
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        let grow = MenuBarWidth.next(current: 82, needed: 116, narrowerSince: nil, now: t0)
+        check("a wider title grows the slot at once", grow.width == 116 && grow.narrowerSince == nil)
+        let dip = MenuBarWidth.next(current: 116, needed: 82, narrowerSince: nil, now: t0)
+        let still = MenuBarWidth.next(current: 116, needed: 82, narrowerSince: dip.narrowerSince,
+                                      now: t0.addingTimeInterval(599))
+        let shrunk = MenuBarWidth.next(current: 116, needed: 82, narrowerSince: dip.narrowerSince,
+                                       now: t0.addingTimeInterval(600))
+        check("a narrower title keeps the slot for ten minutes, then shrinks it",
+              dip.width == 116 && dip.narrowerSince == t0 && still.width == 116 && shrunk.width == 82,
+              "\(dip.width) \(still.width) \(shrunk.width)")
+        let back = MenuBarWidth.next(current: 116, needed: 116, narrowerSince: t0, now: t0.addingTimeInterval(300))
+        check("a title that widens again cancels a pending shrink", back.width == 116 && back.narrowerSince == nil)
+        check("the length is the content alone; macOS adds its own padding",
+              MenuBarWidth.needed(contentWidth: 99.5) == 100 && MenuBarWidth.needed(contentWidth: 15.5) == 16)
+
         if failures.isEmpty {
             print("freshness ok")
             exit(0)

@@ -12,6 +12,19 @@
 # on exit, including on failure or Ctrl-C.
 set -uo pipefail
 
+# A Python new enough for the engine and for these helpers (datetime.UTC is
+# 3.11+). Bare `python3` is not that everywhere: with full Xcode selected,
+# /usr/bin/python3 is Xcode's 3.9, and every helper below failed on it - which
+# the menu bar check then reported as "no spend" instead of as a broken setup.
+PY=""
+for candidate in python3.14 python3.13 python3.12 python3.11 python3; do
+  if command -v "$candidate" >/dev/null 2>&1 \
+     && "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
+    PY="$(command -v "$candidate")"; break
+  fi
+done
+[ -n "$PY" ] || { echo "needs Python 3.11 or newer on PATH" >&2; exit 2; }
+
 REPO_URL="https://github.com/devopsinside/burn-o-meter"
 SOURCE="${1:-}"
 TMP="$(mktemp -d)"
@@ -44,7 +57,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 step "Installing into a throwaway environment"
-python3 -m venv "$TMP/venv" >/dev/null 2>&1 || { bad "could not create a virtualenv"; exit 1; }
+"$PY" -m venv "$TMP/venv" >/dev/null 2>&1 || { bad "could not create a virtualenv"; exit 1; }
 BIN="$TMP/venv/bin"
 
 if [ "$SOURCE" = "--from-git" ]; then
@@ -98,14 +111,14 @@ step "Reports"
 for cmd in today models daily blocks; do
   "$BIN/burn-o-meter" "$cmd" >/dev/null 2>&1 && ok "$cmd" || bad "$cmd failed"
 done
-"$BIN/burn-o-meter" models --json 2>/dev/null | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
+"$BIN/burn-o-meter" models --json 2>/dev/null | "$PY" -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
   && ok "--json is valid JSON" || bad "--json did not parse"
 
 # "Today" must start at this machine's midnight, not UTC's. It once began at
 # 05:30 in India, and the menu bar showed nothing for usage after midnight.
 since="$("$BIN/burn-o-meter" today --json 2>/dev/null \
-         | python3 -c 'import json,sys; print(json.load(sys.stdin)["today"]["since"])' 2>/dev/null)"
-want="$(python3 -c '
+         | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["today"]["since"])' 2>/dev/null)"
+want="$("$PY" -c '
 from datetime import UTC, datetime
 d = datetime.now().astimezone().date()
 print(datetime(d.year, d.month, d.day).astimezone().astimezone(UTC).isoformat())')"

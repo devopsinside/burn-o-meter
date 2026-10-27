@@ -55,6 +55,40 @@ enum MenuBarFit {
     }
 }
 
+/// How wide the status item's slot should be.
+///
+/// Every change of width makes macOS lay the menu bar out again, and on a crowded
+/// one that is when things go wrong. v0.6.7 dropped to the glyph alone whenever the
+/// item was hidden and restored the title on every app switch; macOS widened the
+/// item to the right, over icons it had already packed beside the glyph, and then
+/// pushed it back under the notch - the overlap in the report, flipping every few
+/// seconds. So the width changes as rarely as the text allows: it grows at once,
+/// because the text must fit, and shrinks only once a narrower title has lasted ten
+/// minutes, so a percentage falling at a window reset does not reshuffle the bar.
+enum MenuBarWidth {
+    static let shrinkAfter: TimeInterval = 600
+
+    /// The length to give the item for content of this width. macOS adds 8pt each
+    /// side on top of whatever length is set, fixed or variable - measured: content
+    /// 99.5 made a 116pt window as a variable item, and a 102pt length made a 118pt
+    /// window - so the length is the content alone. Adding the padding here, as a
+    /// first version did, padded every title twice.
+    static func needed(contentWidth: CGFloat) -> CGFloat {
+        contentWidth.rounded(.up)
+    }
+
+    /// The next slot width, and since when a narrower title has been wanted.
+    static func next(
+        current: CGFloat, needed: CGFloat, narrowerSince: Date?, now: Date
+    ) -> (width: CGFloat, narrowerSince: Date?) {
+        if needed > current + 0.5 { return (needed, nil) }
+        if needed >= current - 0.5 { return (current, nil) }
+        let since = narrowerSince ?? now
+        if now.timeIntervalSince(since) >= shrinkAfter { return (needed, nil) }
+        return (current, since)
+    }
+}
+
 /// Transitions of the item's visibility, appended to `menubar.log` in the data
 /// directory so the engine's `doctor` can say whether, and how often, macOS hid it.
 /// Only the transitions are written, never what was on screen or which app was in

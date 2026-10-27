@@ -14,6 +14,19 @@
 # outside the temp directory is read or written.
 set -uo pipefail
 
+# A Python new enough for the engine and for these helpers (datetime.UTC is
+# 3.11+). Bare `python3` is not that everywhere: with full Xcode selected,
+# /usr/bin/python3 is Xcode's 3.9, and every helper below failed on it - which
+# the menu bar check then reported as "no spend" instead of as a broken setup.
+PY=""
+for candidate in python3.14 python3.13 python3.12 python3.11 python3; do
+  if command -v "$candidate" >/dev/null 2>&1 \
+     && "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
+    PY="$(command -v "$candidate")"; break
+  fi
+done
+[ -n "$PY" ] || { echo "needs Python 3.11 or newer on PATH" >&2; exit 2; }
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENGINE="${ENGINE:-$(command -v burnometer || echo "$HERE/.venv/bin/burnometer")}"
 APP="${APP:-$HERE/macos/build/burn-o-meter.app/Contents/MacOS/burn-o-meter}"
@@ -36,7 +49,7 @@ for zone in $ZONES; do
 
   # One assistant turn, one minute after local midnight, written as Claude Code
   # writes it (repeated, as it repeats them).
-  TZ="$zone" python3 - "$P/sess-e2e.jsonl" <<'PY'
+  TZ="$zone" "$PY" - "$P/sess-e2e.jsonl" <<'PY'
 import json, sys
 from datetime import UTC, datetime, timedelta
 today = datetime.now().astimezone().date()
@@ -51,6 +64,10 @@ line = json.dumps({
 })
 open(sys.argv[1], "w").write(line + "\n" + line + "\n")
 PY
+
+  # A setup that failed must stop the run, not be reported as the product's
+  # fault: a helper crash once left no transcript, and the check said "no spend".
+  [ -s "$P/sess-e2e.jsonl" ] || { echo "could not write the test transcript" >&2; exit 2; }
 
   export HOME="$H" BURNOMETER_HOME="$H/.burn-o-meter" CLAUDE_CONFIG_DIR="$H/.claude" TZ="$zone"
 
@@ -69,7 +86,7 @@ PY
   dump=$(perl -e 'alarm 30; exec @ARGV' "$APP" --dump -menuBarStyle "$style" 2>/dev/null)
   if [ -z "$dump" ]; then bad "the app produced no --dump output ($style)"; continue; fi
 
-  STYLE="$style" python3 - "$dump" <<'PY' || fail=$((fail+1))
+  STYLE="$style" "$PY" - "$dump" <<'PY' || fail=$((fail+1))
 import json, sys
 d = json.loads(sys.argv[1])
 title = d.get("menu_bar_title", "")
@@ -96,7 +113,7 @@ print(f"  \033[32m✓\033[0m menu bar ({os.environ['STYLE']}) would show: {title
 PY
   done
   # The hourly chart's first bar is local midnight, and the usage sits in it.
-  TZ="$zone" python3 - "$BURNOMETER_HOME/snapshot.json" <<'PY' || fail=$((fail+1))
+  TZ="$zone" "$PY" - "$BURNOMETER_HOME/snapshot.json" <<'PY' || fail=$((fail+1))
 import json, sys
 from datetime import datetime
 snap = json.load(open(sys.argv[1]))

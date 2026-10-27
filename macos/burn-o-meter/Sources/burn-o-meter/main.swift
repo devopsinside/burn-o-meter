@@ -47,11 +47,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// keeps firing regardless of how long a scan takes.
     private var isScanning = false
 
-    /// Showing the glyph alone because the full title did not fit beside the
-    /// notch. Cleared whenever the frontmost app or the display changes - the two
-    /// things that change how much room there is - so the full title is retried.
-    private var glyphOnlyToFit = false
-    private var lastFit: (hidden: Bool, glyphOnly: Bool)?
+    /// Whether the item was out of sight at the last check, so only changes are
+    /// logged.
+    private var lastHidden: Bool?
+    /// Since when the title has wanted a narrower slot than it has - see
+    /// MenuBarWidth.
+    private var narrowerSince: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -99,20 +100,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            self.retryFullTitle()
-            guard self.popover.isShown else { return }
+            guard let self, self.popover.isShown else { return }
             self.sizePopoverToContent()
-        }
-
-        // The room beside the notch depends on the frontmost app's menus and on
-        // which display's menu bar is active; when either changes, try the full
-        // title again and let the next tick decide.
-        for name in [NSWorkspace.didActivateApplicationNotification,
-                     NSWorkspace.activeSpaceDidChangeNotification] {
-            NSWorkspace.shared.notificationCenter.addObserver(
-                forName: name, object: nil, queue: .main
-            ) { [weak self] _ in self?.retryFullTitle() }
         }
 
         refresh()
@@ -125,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// payload current.
     private func tick() {
         reload()
+        fitWidth()  // lets a pending shrink happen even when the text is unchanged
         checkFit()
         guard !isScanning, !model.isRefreshing else { return }
         let age = model.snapshot.generatedAt.map { Date().timeIntervalSince($0) }
@@ -165,45 +155,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// including the inversion while the item is held down.
     private func setTitle(_ text: String, percent: Double? = nil) {
         guard let button = statusItem.button else { return }
-        guard !text.isEmpty else {
-            button.attributedTitle = NSAttributedString(string: "")
-            return
-        }
-        button.attributedTitle = MenuBarTitle.attributed(
-            text, percent: percent, warn: Preferences.colourLimitInMenuBar
-        )
+        let title = text.isEmpty
+            ? NSAttributedString(string: "")
+            : MenuBarTitle.attributed(text, percent: percent, warn: Preferences.colourLimitInMenuBar)
+        // Only when it changed. This ran every two seconds with the same text, and
+        // each assignment is an invitation for macOS to lay the bar out again.
+        if button.attributedTitle.isEqual(to: title) { return }
+        button.attributedTitle = title
+        fitWidth()
     }
 
-    /// The title for the current data, in the chosen style - or the glyph alone
-    /// while the full title does not fit.
+    /// Size the slot to the title, changing it as rarely as possible - see
+    /// MenuBarWidth. `reset` takes the needed width at once, for a change the user
+    /// made themselves.
+    private func fitWidth(reset: Bool = false) {
+        guard let button = statusItem.button else { return }
+        let needed = MenuBarWidth.needed(contentWidth: button.intrinsicContentSize.width)
+        let current = statusItem.length > 0 ? statusItem.length : needed
+        let next = reset
+            ? (width: needed, narrowerSince: nil)
+            : MenuBarWidth.next(current: current, needed: needed,
+                                narrowerSince: narrowerSince, now: Date())
+        narrowerSince = next.narrowerSince
+        if statusItem.length != next.width { statusItem.length = next.width }
+    }
+
+    /// The title for the current data, in the chosen style.
     private func renderTitle() {
-        let style = glyphOnlyToFit ? MenuBarStyle.minimal : Preferences.menuBarStyle
-        setTitle(model.snapshot.menuBarTitle(style: style),
+        setTitle(model.snapshot.menuBarTitle(style: Preferences.menuBarStyle),
                  percent: model.snapshot.primaryQuota?.usedPercent)
     }
 
-    /// Is the item where it can be seen? If not, fall back to the glyph, which is
-    /// about 50pt narrower and often fits where the number did not. Transitions are
-    /// logged for `burn-o-meter doctor`; nothing else about the screen is recorded.
+    /// Is the item where it can be seen? Only observed and logged, for
+    /// `burn-o-meter doctor` - never acted on by changing the title. Shrinking to
+    /// the glyph when hidden was tried in 0.6.7 and made things worse: the width
+    /// flipped on every app switch, and macOS drew the restored title over the
+    /// neighbouring icons. Where the item sits is the user's to choose (⌘-drag).
     private func checkFit() {
         let hidden = MenuBarFit.isHidden(statusItem)
-        if hidden && !glyphOnlyToFit && Preferences.menuBarStyle != .minimal {
-            glyphOnlyToFit = true
-            renderTitle()
+        if hidden != (lastHidden ?? false) || (lastHidden == nil && hidden) {
+            MenuBarLog.record(hidden ? "hidden" : "visible", MenuBarFit.placement(statusItem))
         }
-        let now = (hidden: hidden, glyphOnly: glyphOnlyToFit)
-        if lastFit == nil ? hidden : (lastFit!.hidden != now.hidden || lastFit!.glyphOnly != now.glyphOnly) {
-            let event = hidden ? (now.glyphOnly && lastFit?.glyphOnly == true ? "hidden-even-as-glyph" : "hidden")
-                               : (now.glyphOnly ? "visible-as-glyph" : "visible")
-            MenuBarLog.record(event, MenuBarFit.placement(statusItem))
-        }
-        lastFit = now
-    }
-
-    private func retryFullTitle() {
-        guard glyphOnlyToFit else { return }
-        glyphOnlyToFit = false
-        renderTitle()
+        lastHidden = hidden
     }
 
     /// Re-read the payload the engine wrote. Cheap; runs on the poll timer.
@@ -374,8 +367,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let raw = sender.representedObject as? String,
               let style = MenuBarStyle(rawValue: raw) else { return }
         Preferences.menuBarStyle = style
-        glyphOnlyToFit = false
         renderTitle()
+        fitWidth(reset: true)
     }
 
     private static let colourLimitMarker = "colour-limit"
@@ -431,9 +424,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///
     /// The question this answers: when the menu bar is full, is there any signal we
     /// can read? If there is, the title can shrink itself instead of vanishing.
-    /// Force a title too wide to fit, and report what the fit check did with it:
-    /// whether macOS hid the item, and whether the glyph alone then fits. The real
-    /// item, the real menu bar, and the real fallback - not the arithmetic alone.
+    /// Force a title too wide to fit and report whether the fit check sees it as
+    /// hidden: the real item on the real menu bar, not the arithmetic alone. Exits
+    /// 0 when it is detected, 3 when the title fitted after all.
     func probeFitAndExit(chars: Int) {
         timer?.invalidate()
         timer = nil
@@ -441,15 +434,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setTitle(String(repeating: "8", count: chars))
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             let hidden = MenuBarFit.isHidden(self.statusItem)
-            print("wide title: hidden=\(hidden)  \(MenuBarFit.placement(self.statusItem))")
-            // What the tick does next, with the wide title standing in for the data.
-            if hidden { self.glyphOnlyToFit = true; self.setTitle("") }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                let after = MenuBarFit.isHidden(self.statusItem)
-                print("glyph only: hidden=\(after)  \(MenuBarFit.placement(self.statusItem))")
-                exit(hidden && !after ? 0 : (hidden ? 1 : 3))
+            print("wide title: hidden=\(hidden)  slot \(Int(self.statusItem.length))pt  "
+                  + MenuBarFit.placement(self.statusItem))
+            exit(hidden ? 0 : 3)
+        }
+    }
+
+    /// The width policy on the real menu bar: a wider title grows the slot at
+    /// once, a narrower one keeps it, and re-applying the same title changes
+    /// nothing. Exits 0 when all three hold.
+    func probeWidthAndExit() {
+        timer?.invalidate()
+        timer = nil
+        let steps = ["~$3.23", "100% ~$302", "~$3.23", "~$3.23"]
+        var widths: [CGFloat] = []
+        var i = 0
+        func next() {
+            guard i < steps.count else {
+                let grew = widths[1] > widths[0] + 20
+                let held = widths[2] == widths[1]
+                let still = widths[3] == widths[2]
+                print("window widths \(widths.map { Int($0) }): grew=\(grew) held=\(held) still=\(still)")
+                exit(grew && held && still ? 0 : 1)
+            }
+            setTitle(steps[i])
+            // The first step is the baseline: launch already showed real data, and
+            // the slot rightly kept that width. Start from this title's own width.
+            if i == 0 { fitWidth(reset: true) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                widths.append(self.statusItem.button?.window?.frame.width ?? -1)
+                i += 1
+                next()
             }
         }
+        next()
     }
 
     func probeMenuBarAndExit() {
@@ -718,7 +736,8 @@ let knownFlags: [(flag: String, help: String)] = [
     ("--preview-menubar-icon", "render the menu bar glyph to <path>"),
     ("--enable-login-item", "register launch at login"),
     ("--disable-login-item", "unregister launch at login"),
-    ("--probe-fit", "force an over-wide title; report whether the glyph then fits [chars]"),
+    ("--probe-fit", "force an over-wide title; report whether it is seen as hidden [chars]"),
+    ("--probe-width", "check on the real menu bar that the slot grows at once and holds"),
     ("--hold", "keep a probe open longer"),
 ]
 
@@ -818,6 +837,10 @@ let probingMenuBar = CommandLine.arguments.contains("--probe-menubar")
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
+
+if CommandLine.arguments.contains("--probe-width") {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { delegate.probeWidthAndExit() }
+}
 
 if let i = CommandLine.arguments.firstIndex(of: "--probe-fit") {
     let chars = i + 1 < CommandLine.arguments.count ? Int(CommandLine.arguments[i + 1]) ?? 120 : 120

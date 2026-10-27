@@ -212,18 +212,12 @@ def _menubar_note(now: datetime | None = None) -> str | None:
     if not hides:
         return None
     last = max(when for when, _ in hides)
-    full = any(event == "hidden-even-as-glyph" for _, event in hides)
     return (
         f"macOS hid the menu bar icon {plural(len(hides), 'time')} in the last "
         f"{MENUBAR_LOOKBACK_DAYS} days (last {last.astimezone():%b %d %H:%M}) - the "
-        "menu bar ran out of room, usually beside a notch. "
-        + (
-            "Even the glyph alone did not fit. "
-            if full
-            else "The app falls back to the glyph alone to stay visible. "
-        )
-        + "⌘-drag burn-o-meter toward the right of the menu bar, where macOS hides "
-        "items last; it now stays where you put it."
+        "menu bar ran out of room, usually beside a notch. ⌘-drag burn-o-meter toward "
+        "the right of the menu bar, where macOS hides items last (it stays where you "
+        "put it), or choose Menu Bar Shows → Icon Only to make it narrower."
     )
 
 

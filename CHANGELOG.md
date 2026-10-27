@@ -8,6 +8,25 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Fixed
+
+- **Other icons were drawn over the menu bar title.** 0.6.7 dropped to the glyph
+  alone whenever macOS hid the item, and restored the title on every app switch.
+  macOS widened the item to the right, over icons it had already packed into the
+  space the glyph had freed, then pushed it back under the notch — the app's own
+  log shows it flipping every few seconds, and a screenshot shows two other icons
+  across "100% ~$302". The automatic shrinking is gone; hidden spells are still
+  logged and reported by `doctor`.
+- **The title was re-applied every two seconds even when unchanged**, each time an
+  invitation to lay the menu bar out again. It is now set only when it changes.
+- **The item's width changes as rarely as the text allows.** It grows at once,
+  since the text must fit, and shrinks only once a narrower title has lasted ten
+  minutes, so a percentage falling at a window reset does not reshuffle the bar.
+  Checked on a real menu bar with the new `--probe-width` (84 → 118 → held at 118;
+  the old behaviour sprang back to 84), which also runs in CI.
+
 ## [0.6.7] — 2026-10-19
 
 ### Fixed
