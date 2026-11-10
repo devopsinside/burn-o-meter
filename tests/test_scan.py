@@ -314,3 +314,34 @@ def test_ordinary_sources_still_skip_unchanged_files(store: Store, live_logs: Pa
     scan(store, adapters=[adapter])
     again = scan(store, adapters=[adapter])
     assert again.files_unchanged == 1 and again.files_parsed == 0
+
+
+def test_a_change_of_rates_reprices_what_is_already_stored(store: Store, live_logs: Path) -> None:
+    """Five Claude Haiku 5.5 turns were read before its rate shipped, and stayed
+    "unpriced" afterwards: stored costs were only ever recomputed by a manual
+    `reprice`, so an upgrade with the rate in it changed nothing for usage
+    already counted. A scan now notices the rates moved and reprices."""
+    from burnometer.pricing.catalog import Catalog, Price
+
+    a = _adapter_over(live_logs)
+    nothing_known = Catalog(prices={}, layers=[])
+    scan(store, adapters=[a], catalog=nothing_known)
+    costs = lambda: [r["cost_usd"] for r in store.query("SELECT cost_usd FROM usage_events")]  # noqa: E731
+    assert costs() and all(c is None for c in costs())
+
+    rates = Catalog(
+        prices={
+            m: Price(
+                input=5.0, output=25.0, cache_read=0.5, cache_write_5m=6.25, cache_write_1h=10.0
+            )
+            for m in ("claude-opus-5", "claude-opus-4-8")
+        },
+        layers=[],
+    )
+    second = scan(store, adapters=[a], catalog=rates)
+    assert second.files_parsed == 0, "the transcript itself did not change"
+    assert second.repriced == store.count_events()
+    assert all(c is not None and c > 0 for c in costs())
+
+    third = scan(store, adapters=[a], catalog=rates)
+    assert third.repriced == 0, "unchanged rates must not reprice on every poll"

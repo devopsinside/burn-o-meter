@@ -136,6 +136,13 @@ struct Quota: Identifiable {
     /// The age the writer computed. Only a fallback, for a payload with no
     /// `observed_at`; anything else must prefer ``ageSeconds``.
     let reportedAgeSeconds: Int?
+    /// What this machine's usage cost inside this window, or nil when the engine
+    /// could not tell where the window began.
+    var spend: WindowSpend? = nil
+    /// Whether the engine reported a window spend at all. One older than this
+    /// field writes none, and the title then keeps its old behaviour rather than
+    /// dropping the spend.
+    var reportsSpend = false
 
     /// How old the reading is *now*.
     var ageSeconds: Int? {
@@ -220,6 +227,19 @@ struct Quota: Identifiable {
         case ("claude", "seven_day"): return 2
         default: return 3
         }
+    }
+}
+
+/// Usage inside a quota's own window, as the engine computed it.
+struct WindowSpend {
+    let requests: Int
+    /// Keyed by basis with no combined total, like the day's subtotals.
+    let subtotalsByBasis: [String: Double]
+
+    var subtotals: [(CostBasis, Double)] {
+        subtotalsByBasis
+            .compactMap { key, value in CostBasis(rawValue: key).map { ($0, value) } }
+            .sorted { $0.1 > $1.1 }
     }
 }
 
@@ -316,12 +336,17 @@ struct Snapshot {
         if error != nil { return "⚠️" }
         if style == .minimal { return "" }
 
-        let spend = subtotals.first.map { "\($0.0.prefix)\(Format.money($0.1))" }
-        let onSubscription = subtotals.first?.0 == .apiEquivalent
-
         if let quota = primaryQuota, let percent = quota.usedPercent {
             let pct = MenuBarTitle.percentText(percent)
-            guard let spend else { return pct }
+            // The figure beside a percentage covers the same window. Two numbers
+            // side by side read as one statement, and pairing the five-hour
+            // window with today's spend made it false whenever the window began
+            // before midnight: "76% ~$2.9" at 01:57, the $2.9 since midnight,
+            // beside a window that already held $31.66.
+            let pairs = quota.reportsSpend ? (quota.spend?.subtotals ?? []) : subtotals
+            guard let first = pairs.first else { return pct }
+            let spend = "\(first.0.prefix)\(Format.money(first.1))"
+            let onSubscription = first.0 == .apiEquivalent
             switch style {
             case .full:
                 // Two spaces, not an interpunct. A "·" between the two figures
@@ -333,7 +358,7 @@ struct Snapshot {
             case .compact:
                 // Cents in a menu bar are noise: nobody acts on the difference
                 // between $47.97 and $48, and the two characters cost real width.
-                let tight = subtotals.first.map { "\($0.0.prefix)\(Format.moneyTight($0.1))" } ?? ""
+                let tight = "\(first.0.prefix)\(Format.moneyTight(first.1))"
                 return onSubscription ? "\(pct) \(tight)" : "\(tight) \(pct)"
             case .oneNumber:
                 // Which number survives depends on how the user pays: on a
@@ -344,7 +369,7 @@ struct Snapshot {
                 return ""
             }
         }
-        return spend ?? "—"
+        return subtotals.first.map { "\($0.0.prefix)\(Format.money($0.1))" } ?? "—"
     }
 }
 

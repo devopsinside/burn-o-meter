@@ -79,6 +79,38 @@ enum FreshnessCheck {
               atLimit.menuBarTitle(style: .oneNumber).contains("100%"),
               "title was \"\(atLimit.menuBarTitle(style: .oneNumber))\"")
 
+        // The spend beside a percentage covers the same window. At 01:57 the bar
+        // read "76% ~$2.9": the window had opened at 23:21 and held $31.66, but
+        // the figure shown was today's, since midnight.
+        print("menu bar spend")
+        var straddling = Snapshot()
+        var window = quota(observedSecondsAgo: 30, reported: nil, percent: 76)
+        window.reportsSpend = true
+        window.spend = WindowSpend(requests: 106, subtotalsByBasis: ["api_equivalent": 31.66])
+        straddling.quotas = [window]
+        straddling.subtotalsByBasis = ["api_equivalent": 2.88]
+        check("the spend shown is the window's, not the day's",
+              straddling.menuBarTitle(style: .full) == "76%  ~$31.66"
+                  && straddling.menuBarTitle(style: .compact) == "76% ~$32",
+              "titles were \"\(straddling.menuBarTitle(style: .full))\", "
+                  + "\"\(straddling.menuBarTitle(style: .compact))\"")
+        var unknownStart = straddling
+        unknownStart.quotas[0].spend = nil
+        check("a window with no known start shows its percentage alone",
+              unknownStart.menuBarTitle(style: .full) == "76%",
+              "title was \"\(unknownStart.menuBarTitle(style: .full))\"")
+        var olderEngine = straddling
+        olderEngine.quotas[0].reportsSpend = false
+        olderEngine.quotas[0].spend = nil
+        check("an engine that reports no window spend keeps the day's figure",
+              olderEngine.menuBarTitle(style: .full) == "76%  ~$2.88",
+              "title was \"\(olderEngine.menuBarTitle(style: .full))\"")
+        var noQuota = Snapshot()
+        noQuota.subtotalsByBasis = ["api_billed": 4.5]
+        check("without a percentage, the title is the day's spend",
+              noQuota.menuBarTitle(style: .full) == "$4.50",
+              "title was \"\(noQuota.menuBarTitle(style: .full))\"")
+
         // A payload with no observed_at at all still has to work, or an older
         // engine writing an older schema would show no quota rather than a lagging
         // one.

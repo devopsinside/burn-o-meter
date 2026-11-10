@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 import shutil
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -106,6 +106,66 @@ def _window_already_reset(resets_at: str | None, observed_at: str | None) -> boo
     except ValueError:
         return False
     return resets <= observed or resets <= datetime.now(UTC)
+
+
+#: Which stored usage a provider's quota is consumed by. Claude's plan limits
+#: are reported under "claude" (desktop app, status line) but the usage that
+#: draws on them is recorded from Claude Code's transcripts.
+_QUOTA_USAGE_PROVIDER = {"claude": "claude_code", "claude_code": "claude_code", "codex": "codex"}
+
+
+def _window_spend(
+    store: Store,
+    quota: dict[str, Any],
+    local_block: Any,
+    now: datetime,
+) -> dict[str, Any] | None:
+    """What this machine's usage cost inside the window a quota reading covers.
+
+    A percentage and a dollar figure side by side are read as describing the same
+    thing. The menu bar used to pair the five-hour window's percentage with
+    today's spend, and the two diverge as soon as a window straddles midnight:
+    at 01:57 it read "76% ~$2.9" - the $2.9 since midnight, beside a window that
+    had opened at 23:21 and held $31.66 of usage. This is that window's own figure.
+
+    The window opened ``window_minutes`` before it resets. Without a reset time
+    the five-hour window falls back to the one found in the local transcripts;
+    anything else has no known start, and None says so rather than guessing.
+    Only usage on this machine is counted - the percentage is account-wide.
+    """
+    usage_provider = _QUOTA_USAGE_PROVIDER.get(quota["provider"])
+    if usage_provider is None:
+        return None
+    start: datetime | None = None
+    resets_at, minutes = quota.get("resets_at"), quota.get("window_minutes")
+    if resets_at and minutes:
+        try:
+            resets = datetime.fromisoformat(str(resets_at).replace("Z", "+00:00"))
+        except ValueError:
+            resets = None
+        if resets is not None:
+            start = resets - timedelta(minutes=int(minutes))
+    elif (
+        quota["window_name"] == "five_hour"
+        and usage_provider == "claude_code"
+        and local_block is not None
+        and local_block.is_active(now)
+    ):
+        start = local_block.start
+    if start is None:
+        return None
+
+    report = aggregate(store, "provider", since=start, until=now, provider=usage_provider)
+    return {
+        "since": start.isoformat(),
+        "requests": report.total_requests,
+        # Keyed by basis with no combined total, like today's subtotals.
+        "subtotals": {
+            basis.value: _money(totals.cost_usd)
+            for basis, totals in report.subtotals.items()
+            if totals.cost_usd is not None
+        },
+    }
 
 
 def engine_argv() -> list[str]:
@@ -213,6 +273,7 @@ def build_snapshot(store: Store, *, now: datetime | None = None) -> dict[str, An
                     # running, so a reading can be hours old. The UI needs the
                     # age to avoid presenting one as current.
                     "age_seconds": age,
+                    "spend": _window_spend(store, dict(q), current, now),
                 }
             )
 

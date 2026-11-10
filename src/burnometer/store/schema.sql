@@ -97,3 +97,12 @@ CREATE TABLE IF NOT EXISTS quota_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_quota_lookup
     ON quota_snapshots(provider, window_name, observed_at DESC);
+
+-- Small facts about the store itself. 'priced_with' fingerprints the rates the
+-- stored costs were computed from: when an upgrade or a `pricing refresh` changes
+-- them, the next scan reprices every row, so a model that was unpriced when its
+-- usage was read does not stay unpriced after its rate arrives.
+CREATE TABLE IF NOT EXISTS meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);

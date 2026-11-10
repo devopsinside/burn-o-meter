@@ -95,6 +95,8 @@ Usage by model
 </p>
 
 The menu bar shows the number that matters at a glance; the popover has the rest.
+Beside a rate-limit percentage, the spend is for that same window — `76%  ~$31.66`
+is the five-hour window, not the day — and without one it is today's spend.
 Every figure carries its provenance — `~` means API-equivalent rather than billed,
 `exact` means the provider reported it, and a model with no known price shows `—`
 rather than `$0.00`.

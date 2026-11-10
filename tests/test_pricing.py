@@ -927,3 +927,182 @@ def test_a_refresh_never_prices_less_than_the_install_it_replaces(burn_home, mon
 
     missing = shipped - refreshed
     assert not missing, f"refreshing lost {len(missing)} packaged model(s): {sorted(missing)[:5]}"
+
+
+# -- prompt-length tiers and the newer Claude models -------------------------
+
+
+def _packaged() -> Catalog:
+    from burnometer.pricing.catalog import _PACKAGED_SNAPSHOT
+
+    return load_catalog(snapshot_path=_PACKAGED_SNAPSHOT, user_path=Path("/nonexistent"))
+
+
+@pytest.mark.parametrize(
+    ("model", "rates"),
+    [
+        # (input, 5m write, 1h write, cache read, output), USD per million tokens,
+        # as platform.claude.com/docs/en/about-claude/pricing listed them on
+        # 2026-11-11.
+        ("claude-sonnet-5-5", (2.0, 2.5, 4.0, 0.1, 10.0)),
+        ("claude-fable-5-2", (8.0, 10.0, 16.0, 0.2, 40.0)),
+        ("claude-haiku-5-5", (0.1, 0.125, 0.2, 0.01, 0.5)),
+    ],
+)
+def test_newer_claude_models_are_priced_as_anthropic_publishes(model: str, rates) -> None:
+    """Haiku 5.5 reached a real menu bar unpriced, beside a total that left it out."""
+    p = _packaged().get(model)
+    assert p is not None, f"{model} has no rate in the shipped snapshot"
+    assert (p.input, p.cache_write_5m, p.cache_write_1h, p.cache_read, p.output) == rates
+
+
+def test_haiku_5_5_prompts_over_100k_tokens_pay_the_higher_rates() -> None:
+    """Anthropic prices Haiku 5.5 by prompt length, counting cache reads and
+    writes, and lists both rows. models.dev publishes the second only as a
+    `tiers` entry, which the refresh used to ignore."""
+    p = _packaged().get("claude-haiku-5-5")
+    assert p is not None and p.tier is not None
+    assert p.tier_threshold == 100_000
+    t = p.tier
+    assert (t.input, t.cache_write_5m, t.cache_write_1h, t.cache_read, t.output) == (
+        0.5,
+        0.625,
+        1.0,
+        0.05,
+        2.5,
+    )
+    at_limit = TokenCounts(input=10, cache_read=99_990, output=1_000)
+    over = TokenCounts(input=10, cache_read=150_000, cache_write_1h=2_000, output=500)
+    assert compute_cost(at_limit, p)[0] == pytest.approx(
+        (10 * 0.1 + 99_990 * 0.01 + 1_000 * 0.5) / 1e6
+    )
+    usd, note = compute_cost(over, p)
+    assert usd == pytest.approx((10 * 0.5 + 150_000 * 0.05 + 2_000 * 1.0 + 500 * 2.5) / 1e6)
+    assert "long-context tier" in note
+
+
+def test_the_highest_step_a_prompt_exceeds_applies() -> None:
+    top = Price(input=4.0, output=8.0)
+    middle = Price(input=2.0, output=4.0, tier_threshold=128_000, tier=top)
+    price = Price(input=1.0, output=2.0, tier_threshold=32_000, tier=middle)
+    assert compute_cost(TokenCounts(input=10_000), price)[0] == pytest.approx(0.01)
+    assert compute_cost(TokenCounts(input=100_000), price)[0] == pytest.approx(0.2)
+    assert compute_cost(TokenCounts(input=200_000), price)[0] == pytest.approx(0.8)
+
+
+def test_refresh_reads_every_step_of_a_tiers_list(tmp_path: Path, monkeypatch) -> None:
+    _fake_upstream(
+        monkeypatch,
+        plausible(
+            {
+                "haiku-like": {
+                    "cost": {
+                        "input": 0.1,
+                        "output": 0.5,
+                        "cache_read": 0.01,
+                        "cache_write": 0.125,
+                        "tiers": [
+                            {
+                                "input": 0.5,
+                                "output": 2.5,
+                                "cache_read": 0.05,
+                                "cache_write": 0.625,
+                                "tier": {"type": "context", "size": 100000},
+                            }
+                        ],
+                    }
+                },
+                "stepped": {
+                    "cost": {
+                        "input": 1.0,
+                        "output": 2.0,
+                        "cache_read": 0.1,
+                        # Listed out of order, and the second step names no cache rate.
+                        "tiers": [
+                            {"input": 4.0, "output": 8.0, "tier": {"size": 128000}},
+                            {
+                                "input": 2.0,
+                                "output": 4.0,
+                                "cache_read": 0.2,
+                                "tier": {"size": 32000},
+                            },
+                        ],
+                    }
+                },
+            }
+        ),
+    )
+    snap = refresh_snapshot(tmp_path / "s.json", vendors=("anthropic",))
+    haiku = snap["models"]["haiku-like"]
+    assert haiku["tier_threshold"] == 100000
+    assert haiku["tier"] == {
+        "input": 0.5,
+        "output": 2.5,
+        "cache_read": 0.05,
+        "cache_write_5m": 0.625,
+    }
+    stepped = snap["models"]["stepped"]
+    assert stepped["tier_threshold"] == 32000 and stepped["tier"]["input"] == 2.0
+    top = stepped["tier"]["tier"]
+    assert stepped["tier"]["tier_threshold"] == 128000 and top["input"] == 4.0
+    assert top["cache_read"] == 0.2, "a rate a step leaves out is inherited, not zero"
+
+    cat = load_catalog(snapshot_path=tmp_path / "s.json", user_path=Path("/nonexistent"))
+    assert compute_cost(TokenCounts(input=200_000), cat.get("stepped"))[0] == pytest.approx(0.8)
+
+
+def test_a_models_maker_outranks_a_reseller_with_the_same_slug(tmp_path: Path, monkeypatch) -> None:
+    """A reseller listed after MiniMax replaced MiniMax's own rate for minimax-m3."""
+    payload = plausible({"m3": {"cost": {"input": 0.3, "output": 1.2}}}, vendor="minimax")
+    # The reseller comes first in the response, and again after: order must not matter.
+    payload = {
+        "ollama-cloud": {"models": {"m3": {"cost": {"input": 0.6, "output": 2.4}}}},
+        **payload,
+        "groq": {"models": {"m3": {"cost": {"input": 0.9, "output": 9.9}}}},
+    }
+    _fake_upstream(monkeypatch, payload)
+    snap = refresh_snapshot(tmp_path / "s.json", vendors=("minimax", "groq", "ollama-cloud"))
+    assert snap["models"]["m3"]["vendor"] == "minimax"
+    assert snap["models"]["m3"]["input"] == 0.3
+
+
+def test_the_multiplier_check_covers_every_step(tmp_path: Path) -> None:
+    from burnometer.pricing.catalog import verify_overlay_multipliers
+
+    snap = tmp_path / "snapshot.json"
+    snap.write_text(
+        json.dumps(
+            {
+                "models": {
+                    "m": {
+                        "input": 0.1,
+                        "output": 0.5,
+                        "cache_write_5m": 0.125,
+                        "tier_threshold": 100000,
+                        "tier": {"input": 0.5, "output": 2.5, "cache_write_5m": 0.625},
+                    }
+                }
+            }
+        )
+    )
+    overlay = tmp_path / "overlay.toml"
+    overlay.write_text(
+        '[models."m"]\ncache_write_1h = 0.2\nverified = "2026-01-01"\n\n'
+        '[models."m".tier]\ncache_write_1h = 0.9\n'  # 1.0 is right: 2.0 x 0.5
+    )
+    cat = load_catalog(snapshot_path=snap, overlay_path=overlay, user_path=Path("/nope"))
+    assert cat.get("m").tier.cache_write_1h == 0.9, "the overlay reaches the step"
+    problems = verify_overlay_multipliers(cat)
+    assert len(problems) == 1 and "above 100,000 tokens" in problems[0], problems
+
+
+def test_every_current_anthropic_model_has_a_one_hour_write_rate() -> None:
+    """Claude Code writes its cache with a 1-hour TTL. A model without that rate
+    falls back to the 5-minute one and understates every write by 37.5%; Sonnet
+    5.5 and Fable 5.2 arrived that way."""
+    missing = [
+        slug
+        for slug, p in _packaged().prices.items()
+        if p.vendor == "anthropic" and slug.startswith("claude-") and p.cache_write_1h is None
+    ]
+    assert not missing, f"no 1-hour cache-write rate for {missing}"

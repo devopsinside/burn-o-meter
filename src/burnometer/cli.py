@@ -357,6 +357,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
         t.add_row("unpriced", f"[yellow]{report.events_unpriced:,}[/yellow] ({models})")
     if report.quotas_new:
         t.add_row("quota", f"{report.quotas_new:,} readings")
+    if report.repriced:
+        t.add_row("repriced", f"{report.repriced:,} stored events — the rates have changed")
     t.add_row("total stored", f"{total:,}")
     t.add_row("took", f"{report.duration_s * 1000:.0f} ms")
     console.print(t)

@@ -291,3 +291,85 @@ def test_engine_pointer_survives_a_homebrew_upgrade(
     monkeypatch.setattr(sys, "executable", str(real_bin / "python"))
 
     assert snapshot.engine_argv() == [str(stable / "burnometer")]
+
+
+def _five_hour(resets_in_minutes: float | None, percent: float = 76.0) -> QuotaSnapshot:
+    return QuotaSnapshot(
+        provider="claude",
+        window_name="five_hour",
+        used_percent=percent,
+        observed_at=NOW - timedelta(seconds=30),
+        source=QuotaSource.EXACT,
+        window_minutes=300,
+        resets_at=None if resets_in_minutes is None else NOW + timedelta(minutes=resets_in_minutes),
+    )
+
+
+def test_a_quota_carries_the_spend_inside_its_own_window(store: Store) -> None:
+    """The figure beside a percentage must cover the same span.
+
+    Reported at 01:57 in India: the menu bar read "76% ~$2.9". The five-hour
+    window had opened at 23:21 and held $31.66; the $2.9 was today's, since
+    midnight. Here the window opened two hours ago (it resets in three), and
+    only what was used inside it counts.
+    """
+    store.upsert_events(
+        [
+            _ev("in-1", cost=20.0, basis=CostBasis.API_EQUIVALENT, minutes=100),
+            _ev("in-2", cost=5.0, basis=CostBasis.API_EQUIVALENT, minutes=10),
+            _ev("before", cost=300.0, basis=CostBasis.API_EQUIVALENT, minutes=130),
+            _ev(
+                "other-agent",
+                cost=7.0,
+                basis=CostBasis.API_EQUIVALENT,
+                minutes=5,
+                provider="codex",
+                model="gpt-5.5",
+            ),
+        ]
+    )
+    store.record_quota([_five_hour(resets_in_minutes=180)])
+    quota = next(q for q in build_snapshot(store)["quotas"] if q["window"] == "five_hour")
+    spend = quota["spend"]
+    assert spend["requests"] == 2
+    assert spend["subtotals"] == {"api_equivalent": 25.0}
+    assert datetime.fromisoformat(spend["since"]) == pytest.approx(
+        NOW - timedelta(minutes=120), abs=timedelta(seconds=1)
+    )
+
+
+def test_window_spend_keeps_bases_apart_and_never_counts_unpriced_as_zero(store: Store) -> None:
+    store.upsert_events(
+        [
+            _ev("a", cost=3.0, basis=CostBasis.API_EQUIVALENT, minutes=10),
+            _ev("b", cost=2.0, basis=CostBasis.API_BILLED, minutes=11),
+            _ev("u", model="mystery", cost=None, basis=CostBasis.UNPRICED, minutes=12),
+        ]
+    )
+    store.record_quota([_five_hour(resets_in_minutes=180)])
+    spend = build_snapshot(store)["quotas"][0]["spend"]
+    assert spend["subtotals"] == {"api_equivalent": 3.0, "api_billed": 2.0}
+    assert spend["requests"] == 3
+
+
+def test_without_a_reset_time_the_five_hour_window_is_the_local_one(store: Store) -> None:
+    """The desktop app's readings can lack a reset time; the window found in the
+    transcripts then stands in, rather than the day."""
+    store.upsert_events(
+        [
+            _ev("old", cost=50.0, basis=CostBasis.API_EQUIVALENT, minutes=60 * 7),
+            _ev("w1", cost=4.0, basis=CostBasis.API_EQUIVALENT, minutes=90),
+            _ev("w2", cost=1.0, basis=CostBasis.API_EQUIVALENT, minutes=2),
+        ]
+    )
+    store.record_quota([_five_hour(resets_in_minutes=None)])
+    spend = build_snapshot(store)["quotas"][0]["spend"]
+    assert spend["subtotals"] == {"api_equivalent": 5.0}
+
+
+def test_a_window_with_no_known_start_says_so(store: Store) -> None:
+    """No reset time and no local window: None, never a guess and never the day."""
+    store.upsert_events([_ev("old", cost=50.0, minutes=60 * 7)])
+    store.record_quota([_five_hour(resets_in_minutes=None)])
+    quota = build_snapshot(store)["quotas"][0]
+    assert "spend" in quota and quota["spend"] is None

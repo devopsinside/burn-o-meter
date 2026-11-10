@@ -51,6 +51,13 @@ cache_write_1h = 20.0   # 2.00x
 verified = "2026-09-23"
 source = "https://platform.claude.com/docs/en/about-claude/pricing"
 
+[models."claude-fable-5-2"]
+# base input $8/Mtok  ->  5m write $10 (1.25x, from models.dev)
+# Cache reads are 0.025x input ($0.20), as on Fable 5.1 - Anthropic's footnote.
+cache_write_1h = 16.0   # 2.00x
+verified = "2026-11-11"
+source = "https://platform.claude.com/docs/en/about-claude/pricing"
+
 [models."claude-haiku-4-5"]
 # base input $1/Mtok  ->  5m write $1.25 (1.25x, from models.dev)
 cache_write_1h = 2.0   # 2.00x
@@ -62,6 +69,18 @@ source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
 cache_write_1h = 2.0   # 2.00x
 verified = "2026-08-21"
 source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-haiku-5-5"]
+# Priced by prompt length. Up to 100,000 input tokens (fresh, cache reads and
+# cache writes together): base input $0.10/Mtok -> 5m write $0.125. Over it, every
+# rate is 5x: input $0.50 -> 5m write $0.625. Both rows are on the page below;
+# models.dev publishes the second only as a `tiers` entry.
+cache_write_1h = 0.2   # 2.00x
+verified = "2026-11-11"
+source = "https://platform.claude.com/docs/en/about-claude/pricing"
+
+[models."claude-haiku-5-5".tier]
+cache_write_1h = 1.0   # 2.00x the long-prompt input rate
 
 [models."claude-opus-4-5"]
 # base input $5/Mtok  ->  5m write $6.25 (1.25x, from models.dev)
@@ -131,3 +150,10 @@ source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
 cache_write_1h = 4.0   # 2.00x
 verified = "2026-08-21"
 source = "https://docs.claude.com/en/docs/build-with-claude/prompt-caching"
+
+[models."claude-sonnet-5-5"]
+# base input $2/Mtok  ->  5m write $2.5 (1.25x, from models.dev)
+# Cache reads are 0.05x input ($0.10), the same footnote as Opus 5.5.
+cache_write_1h = 4.0   # 2.00x
+verified = "2026-11-11"
+source = "https://platform.claude.com/docs/en/about-claude/pricing"

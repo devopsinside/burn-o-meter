@@ -198,6 +198,8 @@ class Price:
     cache_write_1h: float | None = None
 
     #: Long-context tier: above this many input tokens, ``tier`` rates apply.
+    #: A model with several steps chains them - the tier carries its own
+    #: threshold and tier - so each step is just a price with one more step above.
     tier_threshold: int | None = None
     tier: Price | None = None
 
@@ -226,6 +228,30 @@ class Catalog:
         """
         return self.prices.get(model.strip().lower()) if model else None
 
+    def fingerprint(self) -> str:
+        """A digest of every rate, so a change of rates can be noticed.
+
+        Provenance is left out: re-dating a snapshot without changing a price
+        must not count as a change.
+        """
+        import hashlib
+
+        def rates(price: Price | None) -> tuple:
+            if price is None:
+                return ()
+            return (
+                price.input,
+                price.output,
+                price.cache_read,
+                price.cache_write_5m,
+                price.cache_write_1h,
+                price.tier_threshold,
+                rates(price.tier),
+            )
+
+        text = repr(sorted((slug, rates(p)) for slug, p in self.prices.items()))
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
     def __contains__(self, model: str) -> bool:
         return self.get(model) is not None
 
@@ -245,17 +271,8 @@ def _price_from_mapping(raw: dict[str, Any], *, vendor: str | None, source: str)
     threshold = raw.get("tier_threshold")
     tier_raw = raw.get("tier")
     if isinstance(tier_raw, dict) and "input" in tier_raw:
-        tier = Price(
-            input=float(tier_raw["input"]),
-            output=float(tier_raw["output"]),
-            cache_read=float(tier_raw.get("cache_read", 0.0)),
-            cache_write_5m=float(tier_raw.get("cache_write_5m", 0.0)),
-            cache_write_1h=(
-                float(tier_raw["cache_write_1h"]) if tier_raw.get("cache_write_1h") else None
-            ),
-            vendor=vendor,
-            source=source,
-        )
+        # Recursive: a tier may itself have a tier above it.
+        tier = _price_from_mapping(tier_raw, vendor=vendor, source=source)
     return Price(
         input=float(raw["input"]),
         output=float(raw["output"]),
@@ -281,6 +298,14 @@ def _merge(base: Price, patch: dict[str, Any], source: str) -> Price:
         for k in ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h")
         if k in patch
     ]
+    tier = base.tier
+    tier_patch = patch.get("tier")
+    if isinstance(tier_patch, dict) and tier is not None:
+        # A model priced by prompt length needs its 1-hour cache-write rate on
+        # every step - Haiku 5.5 publishes one for each - or a long prompt's
+        # writes fall back to the 5-minute rate and are understated.
+        tier = _merge(tier, tier_patch, source)
+        changed.append("tier")
     merged = replace(
         base,
         input=float(patch.get("input", base.input)),
@@ -290,6 +315,7 @@ def _merge(base: Price, patch: dict[str, Any], source: str) -> Price:
         cache_write_1h=(
             float(patch["cache_write_1h"]) if "cache_write_1h" in patch else base.cache_write_1h
         ),
+        tier=tier,
     )
     detail = f"+{source}({','.join(changed)})" if changed else ""
     return merged.with_source(f"{base.source}{detail}")
@@ -368,28 +394,79 @@ def verify_overlay_multipliers(catalog: Catalog | None = None) -> list[str]:
     """
     cat = catalog if catalog is not None else load_catalog(user_path=Path("/nonexistent"))
     problems: list[str] = []
-    for slug, price in sorted(cat.prices.items()):
-        if "overlay" not in price.source or price.cache_write_1h is None:
+    for slug, top in sorted(cat.prices.items()):
+        if "overlay" not in top.source:
             continue
-        expected = price.input * CACHE_WRITE_1H_MULTIPLIER
-        if abs(price.cache_write_1h - expected) > 1e-6:
-            problems.append(
-                f"{slug}: cache_write_1h is {price.cache_write_1h}, expected "
-                f"{expected} ({CACHE_WRITE_1H_MULTIPLIER}x input {price.input})"
-            )
-        if price.cache_write_5m:
-            expected_5m = price.input * CACHE_WRITE_5M_MULTIPLIER
-            if abs(price.cache_write_5m - expected_5m) > 1e-6:
-                problems.append(
-                    f"{slug}: cache_write_5m is {price.cache_write_5m}, expected "
-                    f"{expected_5m} ({CACHE_WRITE_5M_MULTIPLIER}x input {price.input})"
-                )
+        # Every step of a tiered model, each against its own input rate.
+        price: Price | None = top
+        label = slug
+        while price is not None:
+            if price.cache_write_1h is not None:
+                expected = price.input * CACHE_WRITE_1H_MULTIPLIER
+                if abs(price.cache_write_1h - expected) > 1e-6:
+                    problems.append(
+                        f"{label}: cache_write_1h is {price.cache_write_1h}, expected "
+                        f"{expected} ({CACHE_WRITE_1H_MULTIPLIER}x input {price.input})"
+                    )
+                if price.cache_write_5m:
+                    expected_5m = price.input * CACHE_WRITE_5M_MULTIPLIER
+                    if abs(price.cache_write_5m - expected_5m) > 1e-6:
+                        problems.append(
+                            f"{label}: cache_write_5m is {price.cache_write_5m}, expected "
+                            f"{expected_5m} ({CACHE_WRITE_5M_MULTIPLIER}x input {price.input})"
+                        )
+            label = f"{slug} above {price.tier_threshold:,} tokens" if price.tier else label
+            price = price.tier
     return problems
 
 
 # --------------------------------------------------------------------------
 # Refresh — the single network egress in this package
 # --------------------------------------------------------------------------
+
+
+def _attach_tiers(entry: dict[str, Any], cost: dict[str, Any]) -> None:
+    """Record a model's prompt-length pricing steps on its snapshot entry.
+
+    models.dev publishes these two ways. ``tiers`` is a list of steps, each with
+    its own rates and the prompt size above which they apply - Claude Haiku 5.5
+    is published only this way, at 100,000 tokens, and some models have two or
+    three steps. ``context_over_200k`` is an older single step, sometimes beside
+    a ``tiers`` list that carries only the threshold.
+
+    Reading only the second form dropped Haiku 5.5's long-prompt rates entirely,
+    pricing a 150,000-token prompt at a fifth of its bill. A rate a step leaves
+    out is inherited from the step below rather than taken as zero: a missing
+    figure is not a free one.
+    """
+    steps: list[tuple[int, dict[str, Any]]] = []
+    for item in cost.get("tiers") or []:
+        if not isinstance(item, dict):
+            continue
+        size = (item.get("tier") or {}).get("size")
+        if isinstance(size, int) and size > 0 and "input" in item and "output" in item:
+            steps.append((size, item))
+    if not steps:
+        over = cost.get("context_over_200k")
+        if not (isinstance(over, dict) and "input" in over and "output" in over):
+            return
+        tiers = cost.get("tiers") or []
+        threshold = None
+        if tiers and isinstance(tiers[0], dict):
+            threshold = (tiers[0].get("tier") or {}).get("size")
+        steps = [(threshold or 200_000, over)]
+
+    below: dict[str, Any] = entry
+    for size, rates in sorted(steps, key=lambda step: step[0]):
+        step: dict[str, Any] = {
+            "input": rates["input"],
+            "output": rates["output"],
+            "cache_read": rates.get("cache_read", below.get("cache_read", 0.0)),
+            "cache_write_5m": rates.get("cache_write", below.get("cache_write_5m", 0.0)),
+        }
+        below["tier_threshold"] = size
+        below["tier"] = step
+        below = step
 
 
 def refresh_snapshot(
@@ -440,8 +517,18 @@ def refresh_snapshot(
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 — checked above
         payload = json.loads(resp.read().decode("utf-8"))
 
+    # The same slug can appear under several vendors - a model's maker and the
+    # hosts that resell it, sometimes at a different price. Taking whichever came
+    # last in the response let a reseller's rate replace MiniMax's own for
+    # minimax-m3. The order of `vendors` is the precedence: makers first, hosts
+    # after, and the first rate seen for a slug is the one kept.
+    order = {name: rank for rank, name in enumerate(vendors or ())}
+    ranked = sorted(
+        (item for item in payload.items() if isinstance(item[1], dict)),
+        key=lambda item: order.get(item[0], len(order)),
+    )
     models: dict[str, Any] = {}
-    for vendor, vdata in payload.items():
+    for vendor, vdata in ranked:
         if vendors and vendor not in vendors:
             continue
         for slug, m in (vdata.get("models") or {}).items():
@@ -459,23 +546,11 @@ def refresh_snapshot(
                 # models.dev publishes exactly one cache-write number and it is
                 # the 5-minute rate. The 1-hour rate is supplied by overlay.toml.
                 entry["cache_write_5m"] = cost["cache_write"]
-            over = cost.get("context_over_200k")
-            tiers = cost.get("tiers") or []
-            threshold = None
-            if tiers and isinstance(tiers[0], dict):
-                threshold = (tiers[0].get("tier") or {}).get("size")
-            if isinstance(over, dict) and "input" in over:
-                entry["tier_threshold"] = threshold or 200_000
-                entry["tier"] = {
-                    "input": over["input"],
-                    "output": over["output"],
-                    "cache_read": over.get("cache_read", 0.0),
-                    "cache_write_5m": over.get("cache_write", 0.0),
-                }
+            _attach_tiers(entry, cost)
             limit = (m.get("limit") or {}).get("context")
             if limit:
                 entry["context_limit"] = limit
-            models[slug.lower()] = entry
+            models.setdefault(slug.lower(), entry)
 
     snapshot = {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),

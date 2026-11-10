@@ -47,22 +47,30 @@ for zone in $ZONES; do
   P="$H/.claude/projects/-Users-e2e-demo"
   mkdir -p "$P"
 
-  # One assistant turn, one minute after local midnight, written as Claude Code
-  # writes it (repeated, as it repeats them).
+  # Assistant turns written as Claude Code writes them (each repeated, as it
+  # repeats them): one a minute after local midnight, one five minutes ago -
+  # inside the five-hour window the status line reports below - and one four
+  # hours ago, before that window opened. Each is a different size, so a spend
+  # that counts the wrong ones cannot come out right by accident.
   TZ="$zone" "$PY" - "$P/sess-e2e.jsonl" <<'PY'
 import json, sys
 from datetime import UTC, datetime, timedelta
-today = datetime.now().astimezone().date()
-at = datetime(today.year, today.month, today.day).astimezone() + timedelta(minutes=1)
-line = json.dumps({
-    "type": "assistant", "requestId": "req_e2e", "sessionId": "sess-e2e",
-    "timestamp": at.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-    "cwd": "/Users/e2e/demo",
-    "message": {"model": "claude-opus-5", "id": "msg_e2e",
-                "usage": {"input_tokens": 1200, "output_tokens": 800,
-                          "cache_read_input_tokens": 40000}},
-})
-open(sys.argv[1], "w").write(line + "\n" + line + "\n")
+now = datetime.now().astimezone()
+midnight = datetime(now.year, now.month, now.day).astimezone()
+turns = [("midnight", midnight + timedelta(minutes=1), 800),
+         ("recent", now - timedelta(minutes=5), 3000),
+         ("early", now - timedelta(hours=4), 50000)]
+with open(sys.argv[1], "w") as out:
+    for name, at, output in turns:
+        line = json.dumps({
+            "type": "assistant", "requestId": f"req_{name}", "sessionId": "sess-e2e",
+            "timestamp": at.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "cwd": "/Users/e2e/demo",
+            "message": {"model": "claude-opus-5", "id": f"msg_{name}",
+                        "usage": {"input_tokens": 1200, "output_tokens": output,
+                                  "cache_read_input_tokens": 40000}},
+        })
+        out.write(line + "\n" + line + "\n")
 PY
 
   # A setup that failed must stop the run, not be reported as the product's
@@ -86,9 +94,11 @@ PY
   dump=$(perl -e 'alarm 30; exec @ARGV' "$APP" --dump -menuBarStyle "$style" 2>/dev/null)
   if [ -z "$dump" ]; then bad "the app produced no --dump output ($style)"; continue; fi
 
-  STYLE="$style" "$PY" - "$dump" <<'PY' || fail=$((fail+1))
-import json, sys
+  STYLE="$style" "$PY" - "$dump" "$BURNOMETER_HOME/snapshot.json" <<'PY' || fail=$((fail+1))
+import json, os, sys
+from datetime import datetime, timedelta
 d = json.loads(sys.argv[1])
+snap = json.load(open(sys.argv[2]))
 title = d.get("menu_bar_title", "")
 problems = []
 if title in ("", "—"):
@@ -104,11 +114,34 @@ else:
         problems.append(f"menu bar title {title!r} shows a real spend as zero")
 if not d.get("rows"):
     problems.append("the popover has no model rows for today")
+# The spend beside the percentage is the five-hour window's own: the turn five
+# minutes ago, the midnight one only while it is inside the window, never the one
+# from four hours ago - and never simply today's total. At 01:57 the bar once read
+# "76% ~$2.9", today's spend beside a window that held $31.66.
+window = next(q for q in snap["quotas"] if q["window"] == "five_hour")
+spend = window.get("spend") or {}
+now = datetime.now().astimezone()
+start = datetime.fromisoformat(spend.get("since", "1970-01-01T00:00:00+00:00"))
+after_midnight = datetime(now.year, now.month, now.day).astimezone() + timedelta(minutes=1)
+expected = 1 + (after_midnight >= start)
+if abs((start - (now - timedelta(hours=2))).total_seconds()) > 120:
+    problems.append(f"window starts {start}, not five hours before its reset")
+if spend.get("requests") != expected:
+    problems.append(f"window spend counts {spend.get('requests')} turns, expected {expected}")
+amount = spend.get("subtotals", {}).get("api_equivalent")
+if amount is None:
+    problems.append(f"the snapshot carries no window spend: {spend!r}")
+else:
+    if os.environ["STYLE"] == "full" or amount < 1:
+        shown = f"${amount:.2f}"
+    else:
+        shown = f"${amount:.0f}" if amount >= 10 else f"${amount:.1f}"
+    if f"~{shown}" not in title:
+        problems.append(f"menu bar title {title!r} does not show the window's spend ~{shown}")
 for p in problems:
     print(f"  \033[31m✗\033[0m {p}")
 if problems:
     sys.exit(1)
-import os
 print(f"  \033[32m✓\033[0m menu bar ({os.environ['STYLE']}) would show: {title}")
 PY
   done
@@ -120,7 +153,7 @@ snap = json.load(open(sys.argv[1]))
 today = next(r for r in snap["ranges"] if r["key"] == "today")
 want = datetime.now().astimezone().strftime("%Y-%m-%dT00")
 first, spent = today["points"][0]["label"], [p["label"] for p in today["points"] if p["total"]]
-if first == want and spent == [want]:
+if first == want and spent and spent[0] == want:
     print(f"  \033[32m✓\033[0m chart starts at local midnight ({first}) and the bar is there")
 else:
     print(f"  \033[31m✗\033[0m chart starts {first}, spend at {spent}; expected {want}")

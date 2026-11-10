@@ -29,9 +29,9 @@ read what it wrote, *then* write the adapter.
 |---|---|
 | **Agents** | Claude Code (subagents included), Codex CLI, OpenCode, Kimi Code (the last three route to other providers, including local models) |
 | **Quota** | Claude (exact — live from Claude Code's status line, or the desktop app's plan records), Codex (exact) |
-| **Pricing** | 329 models · a 1-hour cache-write rate no public database carries |
+| **Pricing** | 374 models · a 1-hour cache-write rate no public database carries |
 | **Surfaces** | CLI (`today`, `models`, `daily`, `projects`, `sessions`, `blocks`, `doctor`) · macOS menu bar · background agent |
-| **Quality** | 429 tests · run in three time zones · an end-to-end menu bar check · security guarantees enforced in CI · reconciled against real logs |
+| **Quality** | 444 tests · run in three time zones · an end-to-end menu bar check · security guarantees enforced in CI · reconciled against real logs |
 | **Analytics** | per-model cost, cache hit rate, effective $/Mtok, cache savings, rolling windows |
 | **Install** | `pipx install burn-o-meter` (PyPI) · `./install.sh` does everything · Homebrew tap with prebuilt bottles · uv · a release archive |
 | **macOS app** | app icon · popover sized to the display it opens on · four menu bar title widths · limit reading turns red at 90% |
@@ -42,7 +42,7 @@ read what it wrote, *then* write the adapter.
 
 ### 1. Other providers through the agents we already support
 
-Claude Code and Codex can both be pointed at another provider, and rates for 329
+Claude Code and Codex can both be pointed at another provider, and rates for 374
 models already ship.
 
 **Local half done.** Both agents were run against Ollama. The model is named and

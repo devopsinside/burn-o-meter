@@ -98,7 +98,7 @@ enum SnapshotFile {
         }
 
         snapshot.quotas = (root["quotas"] as? [[String: Any]] ?? []).map {
-            Quota(
+            var quota = Quota(
                 provider: $0["provider"] as? String ?? "",
                 window: $0["window"] as? String ?? "",
                 usedPercent: $0["used_percent"] as? Double,
@@ -109,6 +109,18 @@ enum SnapshotFile {
                 observedAt: ($0["observed_at"] as? String).flatMap(parseDate),
                 reportedAgeSeconds: $0["age_seconds"] as? Int
             )
+            // Present but null means "no known start"; absent means an older engine.
+            if $0.keys.contains("spend") {
+                quota.reportsSpend = true
+                if let spend = $0["spend"] as? [String: Any] {
+                    quota.spend = WindowSpend(
+                        requests: spend["requests"] as? Int ?? 0,
+                        subtotalsByBasis: (spend["subtotals"] as? [String: Any] ?? [:])
+                            .compactMapValues { $0 as? Double }
+                    )
+                }
+            }
+            return quota
         }
         .sorted { $0.priority < $1.priority }
 

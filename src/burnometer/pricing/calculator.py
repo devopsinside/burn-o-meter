@@ -43,14 +43,19 @@ def _effective_price(price: Price, tokens: TokenCounts) -> tuple[Price, bool]:
     OpenAI charges roughly double above a context threshold (272k for the GPT-5
     family). The threshold applies to the size of the request's input, so it is
     measured against everything on the input side — fresh tokens, cache reads
-    and cache writes alike — not against the output.
+    and cache writes alike — not against the output. Anthropic prices Claude
+    Haiku 5.5 the same way above 100,000 tokens. Some models have several steps;
+    the highest one the prompt exceeds applies.
     """
-    if price.tier is None or price.tier_threshold is None:
-        return price, False
     input_side = tokens.input + tokens.cache_read + tokens.cache_write
-    if input_side > price.tier_threshold:
-        return price.tier, True
-    return price, False
+    rates, tiered = price, False
+    while (
+        rates.tier is not None
+        and rates.tier_threshold is not None
+        and input_side > rates.tier_threshold
+    ):
+        rates, tiered = rates.tier, True
+    return rates, tiered
 
 
 def compute_cost(tokens: TokenCounts, price: Price) -> tuple[float, str]:

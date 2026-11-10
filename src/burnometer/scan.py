@@ -64,6 +64,8 @@ class ScanReport:
     the rate is unknown, this means there is nothing to know."""
     not_metered_models: set[str] = field(default_factory=set)
     quotas_new: int = 0
+    repriced: int = 0
+    """Stored events whose cost was recomputed because the rates changed."""
     duration_s: float = 0.0
     pruned: dict[str, int] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
@@ -121,6 +123,17 @@ def scan(
                         f"{adapter.name}: unexpected {type(exc).__name__} in "
                         f"{redact_path(file_path)}"
                     )
+
+    # Stored costs are a cache of the rates in force when each row was read. A new
+    # release or a `pricing refresh` can change those rates - a model unknown at
+    # scan time gains one - and nothing else would ever revisit the old rows: five
+    # Claude Haiku 5.5 turns stayed "unpriced" after its rate shipped, keeping
+    # the day's total short. So the rates are fingerprinted, with the billing
+    # settings that also decide a row's cost, and any change reprices the store.
+    priced_with = f"{cat.fingerprint()}:{cfg.billing!r}"
+    if store.get_meta("priced_with") != priced_with:
+        report.repriced, _ = reprice(store, config=cfg, catalog=cat)
+        store.set_meta("priced_with", priced_with)
 
     # Bound the database on the way out. Cheap: an indexed delete over a range
     # that is usually empty.
