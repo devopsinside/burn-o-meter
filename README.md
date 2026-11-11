@@ -4,9 +4,9 @@
 and rate limits — all read from files already on your machine. No account, no
 telemetry, nothing sent anywhere.
 
-> **Status: alpha (v0.6.8).** The CLI and the macOS menu bar app both work end to
-> end for Claude Code, Codex, OpenCode and Kimi Code. Tested on macOS 14+; the CLI
-> is portable but Windows and Linux are not yet verified.
+> **Status: alpha (v0.6.9).** The CLI and the macOS menu bar app both work end to
+> end for Claude Code, Codex, OpenCode and Kimi Code. Built for macOS 14+, tested in
+> CI on macOS 15 and 26; the CLI is portable but Windows and Linux are not yet verified.
 
 ## Install
 

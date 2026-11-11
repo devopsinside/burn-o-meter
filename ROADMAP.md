@@ -23,7 +23,7 @@ read what it wrote, *then* write the adapter.
 
 ---
 
-## Shipped — through v0.6.8
+## Shipped — through v0.6.9
 
 | | |
 |---|---|

@@ -8,6 +8,35 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [0.6.9] — 2026-11-11
+
+### Fixed
+
+- **The spend in the menu bar described a different span from the percentage
+  beside it.** The percentage is the rate-limit window; the spend was the day's,
+  since midnight. Whenever a window began before midnight the pair was false: at
+  01:57 the title read "76% ~$2.9" while that five-hour window held $31.66 of
+  usage. Each quota reading now carries the spend inside its own window, and the
+  title shows that beside the percentage — today's spend only when no percentage
+  is shown. The percentage covers the whole account; the spend counts this
+  machine's agents. The end-to-end menu bar check now asserts the pairing, and
+  fails against 0.6.8 in every zone it runs.
+- **Claude Haiku 5.5, Sonnet 5.5 and Fable 5.2 were unpriced**, leaving their
+  usage out of every total. The packaged rates are regenerated, and each of the
+  three was checked against Anthropic's pricing page, with their 1-hour
+  cache-write rates added to the overlay.
+- **Haiku 5.5's long-prompt rates were dropped.** It costs five times as much once
+  a prompt passes 100,000 tokens (cache reads and writes included), and models.dev
+  publishes that only as a `tiers` list, which the refresh did not read. Every step
+  of such a list is now kept — some models have three — and the highest one a
+  prompt exceeds applies.
+- **Stored usage kept the rates it was read with.** A model unpriced at scan time
+  stayed unpriced after its rate shipped, unless someone ran `reprice`. A scan now
+  notices when the rates or billing settings change and reprices the store once.
+- **A reseller's rate could replace a model maker's own.** When several vendors
+  list the same model name, the price refresh kept whichever came last;
+  minimax-m3 had taken a reseller's rate. The model's maker now wins.
+
 ## [0.6.8] — 2026-10-28
 
 ### Fixed
@@ -611,6 +640,7 @@ without provenance is the thing this project exists to avoid.
 First alpha. Claude Code and Codex adapters, TTL-aware pricing, SQLite storage,
 the macOS menu bar app, and the security guarantees with their enforcing tests.
 
+[0.6.9]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.9
 [0.6.8]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.8
 [0.6.7]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.7
 [0.6.6]: https://github.com/devopsinside/burn-o-meter/releases/tag/v0.6.6
