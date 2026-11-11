@@ -113,14 +113,22 @@ echo
 # reboot, after which the only way back is Spotlight.
 if [ "${INSTALL_TO_APPLICATIONS:-0}" = "1" ]; then
   DEST="/Applications/$(basename "$APP")"
+  # A copy that was running is replaced, so it has to be started again: quitting
+  # it and stopping there left the menu bar empty after every upgrade until the
+  # next login, which reads exactly like the upgrade having broken the app.
+  WAS_RUNNING=0
   if [ -e "$DEST" ]; then
-    pkill -f "$DEST/Contents/MacOS/" 2>/dev/null || true
+    if pkill -f "$DEST/Contents/MacOS/" 2>/dev/null; then WAS_RUNNING=1; fi
     sleep 1
     rm -rf "$DEST"
   fi
   cp -R "$APP" "$DEST"
   APP="$DEST"
   echo "installed: $DEST"
+  if [ "$WAS_RUNNING" = 1 ]; then
+    open "$DEST"
+    echo "restarted: the menu bar now runs this build"
+  fi
 fi
 
 echo "built: $APP"

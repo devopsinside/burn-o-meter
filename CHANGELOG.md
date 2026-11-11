@@ -8,6 +8,14 @@ this is alpha software and the `0.x` line may still move things.
 Findings are recorded with the evidence that produced them, because a number
 without provenance is the thing this project exists to avoid.
 
+## [Unreleased]
+
+### Fixed
+
+- **`macos/make-app.sh --install` left the menu bar empty after an upgrade.** It
+  quit the running app to replace it and never started the new one, so the icon
+  stayed gone until the next login. A copy that was running is now restarted.
+
 ## [0.6.9] — 2026-11-11
 
 ### Fixed
