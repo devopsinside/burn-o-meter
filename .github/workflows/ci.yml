@@ -170,7 +170,11 @@ jobs:
 
   app:
     name: macOS app builds
-    runs-on: macos-14
+    # The oldest image GitHub still offers. macos-14 was retired in November 2026:
+    # jobs asking for it were cancelled before they started, which reads as
+    # "cancelled" rather than failed and is easy to miss. The app still targets
+    # macOS 14 (Package.swift); nothing here runs on it any more.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 

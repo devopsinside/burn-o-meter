@@ -39,8 +39,8 @@ jobs:
             label: arm64_tahoe (macOS 26)
           - runner: macos-15
             label: arm64_sequoia (macOS 15)
-          - runner: macos-14
-            label: arm64_sonoma (macOS 14)
+          # No arm64_sonoma: GitHub retired the macos-14 image in November 2026.
+          # `brew install` on macOS 14 builds from source instead, which works.
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -99,7 +99,7 @@ jobs:
   collect:
     name: collect bottles
     needs: build
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
